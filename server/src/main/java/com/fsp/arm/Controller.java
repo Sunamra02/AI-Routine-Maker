@@ -11,7 +11,7 @@ import com.fsp.arm.dto.User;
 public class Controller {
 	@GetMapping("/")
 	public String handleGet() {
-		return "Hello World my name was Sunamra";
+		return "Hello World my name is Sunamra";
 	}
 
 	@PostMapping("/")
