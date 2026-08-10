@@ -34,3 +34,4 @@ build/
 
 ### Custom ###
 .plan
+secrets.properties
