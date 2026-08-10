@@ -34,4 +34,5 @@ build/
 
 ### Custom ###
 .plan
-secrets.properties
+secret.properties
+pom.xml
