@@ -24,6 +24,7 @@ const CreateRoutine = () => {
           setCurrentUser(parsed.username);
         }
       } catch (e) {
+        console.error('Failed to parse user session from localStorage:', e);
         setIsLoggedIn(false);
       }
     } else {

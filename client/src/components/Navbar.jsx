@@ -16,6 +16,7 @@ const Navbar = () => {
       try {
         setUserSession(JSON.parse(session));
       } catch (e) {
+        console.error('Failed to parse user session from localStorage:', e);
         setUserSession(null);
       }
     } else {
