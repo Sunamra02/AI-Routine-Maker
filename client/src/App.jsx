@@ -8,6 +8,7 @@ import MyRoutine from './pages/MyRoutine';
 import Progress from './pages/Progress';
 import Login from './pages/Login';
 import EditRoutine from './pages/EditRoutine';
+import RoutineDetail from './pages/RoutineDetail';
 import { ToastProvider } from './context/ToastContext';
 import './App.css';
 
@@ -27,6 +28,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/create-routine" element={<CreateRoutine />} />
               <Route path="/my-routine" element={<MyRoutine />} />
+              <Route path="/routines/:id" element={<RoutineDetail />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/login" element={<Login />} />
               <Route path="/edit-routine/:id" element={<EditRoutine />} />

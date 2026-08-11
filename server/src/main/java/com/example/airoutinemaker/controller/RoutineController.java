@@ -50,8 +50,12 @@ public class RoutineController {
             return ResponseEntity.badRequest().body(Map.of("error", "Main goal is required."));
         }
 
-        Routine createdRoutine = routineService.createRoutine(request, currentUser.get());
-        return new ResponseEntity<>(createdRoutine, HttpStatus.CREATED);
+        try {
+            Routine createdRoutine = routineService.createRoutine(request, currentUser.get());
+            return new ResponseEntity<>(createdRoutine, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     /**
@@ -87,6 +91,13 @@ public class RoutineController {
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
+    @GetMapping("/date/{date}")
+    public ResponseEntity<?> getRoutinesForDate(@PathVariable java.time.LocalDate date, HttpSession session) {
+        Optional<User> currentUser = authService.getCurrentUserEntity(session);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized. Please log in first."));
+        return ResponseEntity.ok(routineService.getUserRoutinesForDate(currentUser.get(), date));
+    }
+
     /**
      * 4. GET ROUTINE BY ID FOR CURRENT USER
      * GET /api/routines/{id}
@@ -117,10 +128,13 @@ public class RoutineController {
                     .body(Map.of("error", "Unauthorized. Please log in first."));
         }
 
-        Optional<Routine> updatedRoutine = routineService.updateRoutine(id, request, currentUser.get());
-        return updatedRoutine.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body((Routine) null));
+        try {
+            Optional<Routine> updatedRoutine = routineService.updateRoutine(id, request, currentUser.get());
+            return updatedRoutine.map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body((Routine) null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     /**

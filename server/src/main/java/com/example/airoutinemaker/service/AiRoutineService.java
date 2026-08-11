@@ -62,7 +62,8 @@ public class AiRoutineService {
                 """;
 
         String userPrompt = String.format(
-                "Student Goal: %s\nAvailable Hours: %d\nWake-up Time: %s\nSleep Time: %s\nDifficulty/Pace: %s",
+                "Routine Date: %s\nStudent Goal: %s\nAvailable Hours: %d\nRoutine Start Time: %s\nRoutine End Time: %s\nDifficulty/Pace: %s",
+                request.getRoutineDate() != null ? request.getRoutineDate() : "today",
                 request.getGoal(),
                 request.getAvailableHours() != null ? request.getAvailableHours() : 6,
                 request.getWakeUpTime() != null ? request.getWakeUpTime().toString() : "07:00",
@@ -104,7 +105,8 @@ public class AiRoutineService {
                 """;
 
         String userPrompt = String.format(
-                "Goal: %s\nRoutine Style: %s\nRoutine Description: %s\nAvailable Study Hours: %d\nWake Time: %s\nSleep Time: %s\nPace: %s",
+                "Routine Date: %s\nGoal: %s\nRoutine Style: %s\nRoutine Description: %s\nAvailable Study Hours: %d\nRoutine Start Time: %s\nRoutine End Time: %s\nPace: %s",
+                request.getRoutineDate() != null ? request.getRoutineDate() : "today",
                 request.getGoal(),
                 request.getSelectedRoutineTitle() != null ? request.getSelectedRoutineTitle() : "Balanced Schedule",
                 request.getSelectedRoutineDescription() != null ? request.getSelectedRoutineDescription()
@@ -150,7 +152,7 @@ public class AiRoutineService {
                 throw new RuntimeException("Groq API call returned HTTP " + response.getStatusCode());
             }
 
-            // System.out.println("Groq API Response: " + response.getBody()); // Debugging
+            System.out.println("Groq API Response: " + response.getBody()); // Debugging
             // output
 
             // Extract completion message content from response
@@ -205,14 +207,7 @@ public class AiRoutineService {
                 }
             }
 
-            if (options.isEmpty()) {
-                options.add(new AiRoutineOptionDTO("opt_1", "Balanced Routine",
-                        "Steady study pace distributed throughout the day.", "Balanced"));
-                options.add(new AiRoutineOptionDTO("opt_2", "Intensive Revision Routine",
-                        "High focus sessions with targeted review.", "Intensive"));
-                options.add(new AiRoutineOptionDTO("opt_3", "Morning Focus Routine",
-                        "Heavy study load completed early in the day.", "Morning Focus"));
-            }
+            if (options.isEmpty()) throw new RuntimeException("No AI routine options were returned.");
 
             return new AiRoutineSuggestResponse(options);
         } catch (Exception e) {

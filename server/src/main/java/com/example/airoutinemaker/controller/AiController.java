@@ -46,7 +46,7 @@ public class AiController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("error", "Unable to get AI suggestions right now. You can create your routine manually. " + e.getMessage()));
+                    .body(Map.of("error", "Unable to get AI suggestions right now. You can create your routine manually."));
         }
     }
 

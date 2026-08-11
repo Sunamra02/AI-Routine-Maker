@@ -2,6 +2,7 @@ package com.example.airoutinemaker.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalTime;
+import java.time.LocalDate;
 import java.util.List;
 
 public class RoutineSaveRequest {
@@ -15,6 +16,8 @@ public class RoutineSaveRequest {
     private LocalTime sleepTime;
 
     private String difficulty;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate routineDate;
     private List<AiTaskDTO> tasks;
 
     public RoutineSaveRequest() {}
@@ -63,6 +66,10 @@ public class RoutineSaveRequest {
     public String getDifficulty() {
         return difficulty;
     }
+
+    public LocalDate getRoutineDate() { return routineDate; }
+
+    public void setRoutineDate(LocalDate routineDate) { this.routineDate = routineDate; }
 
     public void setDifficulty(String difficulty) {
         this.difficulty = difficulty;

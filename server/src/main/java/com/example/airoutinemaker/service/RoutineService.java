@@ -10,6 +10,7 @@ import com.example.airoutinemaker.repository.RoutineTaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -37,6 +38,7 @@ public class RoutineService {
      */
     @Transactional
     public Routine createRoutine(RoutineSaveRequest request, User user) {
+        validateRequest(request);
         Routine routine = new Routine(
                 request.getGoal(),
                 request.getAvailableHours() != null ? request.getAvailableHours() : 6,
@@ -44,26 +46,9 @@ public class RoutineService {
                 request.getSleepTime() != null ? request.getSleepTime() : LocalTime.of(23, 0),
                 request.getDifficulty() != null ? request.getDifficulty() : "Intermediate"
         );
+        routine.setRoutineDate(request.getRoutineDate());
         routine.setUser(user);
-
-        if (request.getTasks() != null) {
-            for (AiTaskDTO taskDTO : request.getTasks()) {
-                LocalTime taskTime;
-                try {
-                    taskTime = LocalTime.parse(taskDTO.getTime(), TIME_FORMATTER);
-                } catch (Exception e) {
-                    taskTime = routine.getWakeUpTime();
-                }
-                RoutineTask task = new RoutineTask(
-                        taskTime,
-                        taskDTO.getActivity() != null ? taskDTO.getActivity() : "Task Activity",
-                        taskDTO.getDuration() != null ? taskDTO.getDuration() : 30,
-                        false
-                );
-                task.setUser(user);
-                routine.addTask(task);
-            }
-        }
+        addValidatedTasks(routine, request.getTasks(), user);
 
         return routineRepository.save(routine);
     }
@@ -73,6 +58,10 @@ public class RoutineService {
      */
     public List<Routine> getUserRoutines(User user) {
         return routineRepository.findByUserIdOrderByIdDesc(user.getId());
+    }
+
+    public List<Routine> getUserRoutinesForDate(User user, LocalDate date) {
+        return routineRepository.findByUserIdAndRoutineDateOrderByIdDesc(user.getId(), date);
     }
 
     /**
@@ -104,32 +93,18 @@ public class RoutineService {
         }
 
         Routine routine = optionalRoutine.get();
+        if (request.getRoutineDate() == null) request.setRoutineDate(routine.getRoutineDate());
+        validateRequest(request);
         if (request.getGoal() != null) routine.setGoal(request.getGoal());
         if (request.getAvailableHours() != null) routine.setAvailableHours(request.getAvailableHours());
         if (request.getWakeUpTime() != null) routine.setWakeUpTime(request.getWakeUpTime());
         if (request.getSleepTime() != null) routine.setSleepTime(request.getSleepTime());
         if (request.getDifficulty() != null) routine.setDifficulty(request.getDifficulty());
+        routine.setRoutineDate(request.getRoutineDate());
 
         // Replace tasks
         routine.getTasks().clear();
-        if (request.getTasks() != null) {
-            for (AiTaskDTO taskDTO : request.getTasks()) {
-                LocalTime taskTime;
-                try {
-                    taskTime = LocalTime.parse(taskDTO.getTime(), TIME_FORMATTER);
-                } catch (Exception e) {
-                    taskTime = routine.getWakeUpTime();
-                }
-                RoutineTask task = new RoutineTask(
-                        taskTime,
-                        taskDTO.getActivity() != null ? taskDTO.getActivity() : "Task Activity",
-                        taskDTO.getDuration() != null ? taskDTO.getDuration() : 30,
-                        false
-                );
-                task.setUser(user);
-                routine.addTask(task);
-            }
-        }
+        addValidatedTasks(routine, request.getTasks(), user);
 
         return Optional.of(routineRepository.save(routine));
     }
@@ -162,5 +137,47 @@ public class RoutineService {
             return true;
         }
         return false;
+    }
+
+    private void validateRequest(RoutineSaveRequest request) {
+        LocalDate date = request.getRoutineDate();
+        if (date == null) throw new IllegalArgumentException("Routine date is required.");
+        if (date.isBefore(LocalDate.now())) throw new IllegalArgumentException("A routine cannot be scheduled for a past date.");
+        if (date.equals(LocalDate.now()) && LocalTime.now().isAfter(LocalTime.of(23, 57))) throw new IllegalArgumentException("There is not enough time left today to create a routine.");
+        LocalTime start = request.getWakeUpTime() == null ? LocalTime.of(7, 0) : request.getWakeUpTime();
+        LocalTime end = request.getSleepTime() == null ? LocalTime.of(23, 0) : request.getSleepTime();
+        if (!end.isAfter(start)) throw new IllegalArgumentException("Routine end time must be after its start time.");
+        if (date.equals(LocalDate.now()) && start.isBefore(nextAvailableMinute())) {
+            throw new IllegalArgumentException("Today's routine cannot start in the past.");
+        }
+    }
+
+    private void addValidatedTasks(Routine routine, List<AiTaskDTO> taskDtos, User user) {
+        if (taskDtos == null || taskDtos.isEmpty()) throw new IllegalArgumentException("A routine needs at least one task.");
+        if (taskDtos.size() > 20) throw new IllegalArgumentException("A routine can contain at most 20 tasks.");
+        List<RoutineTask> accepted = new java.util.ArrayList<>();
+        for (AiTaskDTO dto : taskDtos) {
+            if (dto == null || dto.getActivity() == null || dto.getActivity().trim().isEmpty()) throw new IllegalArgumentException("Every task needs an activity.");
+            LocalTime taskTime;
+            try { taskTime = LocalTime.parse(dto.getTime(), TIME_FORMATTER); }
+            catch (Exception e) { throw new IllegalArgumentException("Task time must use HH:mm format."); }
+            int duration = dto.getDuration() == null ? 0 : dto.getDuration();
+            if (duration <= 0 || duration > 240) throw new IllegalArgumentException("Task duration must be between 1 and 240 minutes.");
+            LocalTime taskEnd = taskTime.plusMinutes(duration);
+            if (taskEnd.isBefore(taskTime) || taskEnd.isAfter(LocalTime.of(23, 59))) throw new IllegalArgumentException("Tasks must finish by 23:59.");
+            if (taskTime.isBefore(routine.getWakeUpTime()) || taskEnd.isAfter(routine.getSleepTime())) throw new IllegalArgumentException("Tasks must stay within the routine start and end time.");
+            if (routine.getRoutineDate().equals(LocalDate.now()) && taskTime.isBefore(nextAvailableMinute())) throw new IllegalArgumentException("Today's tasks cannot be scheduled in the past.");
+            for (RoutineTask existing : accepted) {
+                LocalTime existingEnd = existing.getTime().plusMinutes(existing.getDuration());
+                if (taskTime.isBefore(existingEnd) && existing.getTime().isBefore(taskEnd)) throw new IllegalArgumentException("Tasks cannot overlap.");
+            }
+            RoutineTask task = new RoutineTask(taskTime, dto.getActivity().trim(), duration, false);
+            task.setUser(user); routine.addTask(task); accepted.add(task);
+        }
+    }
+
+    private LocalTime nextAvailableMinute() {
+        LocalTime now = LocalTime.now();
+        return now.plusMinutes(1).withSecond(0).withNano(0);
     }
 }

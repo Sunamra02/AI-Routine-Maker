@@ -144,6 +144,13 @@ export async function fetchRoutines() {
   return handleResponse(response);
 }
 
+export async function fetchRoutinesForDate(date) {
+  const response = await fetch(`${API_BASE_URL}/api/routines/date/${date}`, {
+    method: 'GET', credentials: 'include',
+  });
+  return handleResponse(response);
+}
+
 /**
  * Fetch latest routine for logged-in user
  */

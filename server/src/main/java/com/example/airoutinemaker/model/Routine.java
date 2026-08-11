@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,9 @@ public class Routine {
     private LocalTime sleepTime;
 
     private String difficulty;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate routineDate;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
@@ -111,6 +115,10 @@ public class Routine {
     public String getDifficulty() {
         return difficulty;
     }
+
+    public LocalDate getRoutineDate() { return routineDate; }
+
+    public void setRoutineDate(LocalDate routineDate) { this.routineDate = routineDate; }
 
     public void setDifficulty(String difficulty) {
         this.difficulty = difficulty;

@@ -23,6 +23,9 @@ const EditRoutine = () => {
   const [wakeUpTime, setWakeUpTime] = useState('07:00');
   const [sleepTime, setSleepTime] = useState('23:00');
   const [difficulty, setDifficulty] = useState('Intermediate');
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const [routineDate, setRoutineDate] = useState(today);
+  const nextMinute = () => { const now = new Date(); now.setMinutes(now.getMinutes() + 1, 0, 0); return now.toTimeString().slice(0, 5); };
 
   // Tasks List
   const [tasks, setTasks] = useState([]);
@@ -49,6 +52,7 @@ const EditRoutine = () => {
             setWakeUpTime(data.wakeUpTime || '07:00');
             setSleepTime(data.sleepTime || '23:00');
             setDifficulty(data.difficulty || 'Intermediate');
+            setRoutineDate(data.routineDate || today);
 
             if (data.tasks) {
               setTasks(
@@ -128,6 +132,7 @@ const EditRoutine = () => {
         wakeUpTime: wakeUpTime,
         sleepTime: sleepTime,
         difficulty: difficulty,
+        routineDate,
         tasks: tasks,
       };
 
@@ -190,6 +195,10 @@ const EditRoutine = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Routine Date</label>
+              <input type="date" min={today} value={routineDate} onChange={(e) => setRoutineDate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800" />
+            </div>
+            <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">
                 Available Study Hours
               </label>
@@ -220,12 +229,13 @@ const EditRoutine = () => {
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">
-                Wake-up Time
+                Routine Start Time
               </label>
               <input
                 type="time"
                 value={wakeUpTime}
                 onChange={(e) => setWakeUpTime(e.target.value)}
+                min={routineDate === today ? nextMinute() : undefined}
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800"
               />
             </div>
@@ -341,6 +351,7 @@ const EditRoutine = () => {
                 type="time"
                 value={newTaskTime}
                 onChange={(e) => setNewTaskTime(e.target.value)}
+                min={routineDate === today ? nextMinute() : wakeUpTime}
                 className="px-3 py-2 border rounded-lg text-sm bg-white"
               />
               <input

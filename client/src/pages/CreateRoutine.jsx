@@ -42,6 +42,17 @@ const CreateRoutine = () => {
   const [wakeupTime, setWakeupTime] = useState('07:00');
   const [sleepTime, setSleepTime] = useState('23:00');
   const [difficulty, setDifficulty] = useState('Intermediate');
+  const localToday = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const currentTime = () => { const now = new Date(); now.setMinutes(now.getMinutes() + 1, 0, 0); return now.toTimeString().slice(0, 5); };
+  const [routineDate, setRoutineDate] = useState(localToday);
+
+  useEffect(() => {
+    if (routineDate === localToday) {
+      const now = currentTime();
+      if (wakeupTime < now) setWakeupTime(now);
+      if (newTaskTime < now) setNewTaskTime(now);
+    }
+  }, [routineDate]);
 
   // Step 2: AI Routine Suggestions State
   const [aiRoutineOptions, setAiRoutineOptions] = useState([]);
@@ -84,6 +95,7 @@ const CreateRoutine = () => {
         wakeUpTime: wakeupTime,
         sleepTime: sleepTime,
         difficulty: difficulty,
+        routineDate,
       };
 
       const res = await getAiRoutineSuggestions(payload);
@@ -151,6 +163,7 @@ const CreateRoutine = () => {
         wakeUpTime: wakeupTime,
         sleepTime: sleepTime,
         difficulty: difficulty,
+        routineDate,
         selectedRoutineTitle: selectedRoutineOption.title,
         selectedRoutineDescription: selectedRoutineOption.description,
       };
@@ -252,7 +265,8 @@ const CreateRoutine = () => {
         availableHours: parseInt(availableHours, 10),
         wakeUpTime: wakeupTime,
         sleepTime: sleepTime,
-        difficulty: difficulty,
+      difficulty: difficulty,
+      routineDate,
         tasks: finalTasksToSave,
       };
 
@@ -337,7 +351,11 @@ const CreateRoutine = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Routine Date</label>
+              <input type="date" min={localToday} value={routineDate} onChange={(e) => setRoutineDate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800" />
+            </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
                   Available Work Hours per day
@@ -369,12 +387,13 @@ const CreateRoutine = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  Wake-up Time
+                  Routine Start Time
                 </label>
                 <input
-                  type="time"
-                  value={wakeupTime}
-                  onChange={(e) => setWakeupTime(e.target.value)}
+                type="time"
+                value={wakeupTime}
+                onChange={(e) => setWakeupTime(e.target.value)}
+                min={routineDate === localToday ? currentTime() : undefined}
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
                 />
               </div>
@@ -629,6 +648,7 @@ const CreateRoutine = () => {
                 type="time"
                 value={newTaskTime}
                 onChange={(e) => setNewTaskTime(e.target.value)}
+                min={routineDate === localToday ? currentTime() : wakeupTime}
                 className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
               />
               <input

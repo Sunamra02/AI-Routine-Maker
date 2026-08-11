@@ -2,6 +2,7 @@ package com.example.airoutinemaker.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalTime;
+import java.time.LocalDate;
 
 public class AiTaskSuggestRequest {
     private String goal;
@@ -16,6 +17,8 @@ public class AiTaskSuggestRequest {
     private String difficulty;
     private String selectedRoutineTitle;
     private String selectedRoutineDescription;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate routineDate;
 
     public AiTaskSuggestRequest() {}
 
@@ -74,4 +77,6 @@ public class AiTaskSuggestRequest {
     public void setSelectedRoutineDescription(String selectedRoutineDescription) {
         this.selectedRoutineDescription = selectedRoutineDescription;
     }
+    public LocalDate getRoutineDate() { return routineDate; }
+    public void setRoutineDate(LocalDate routineDate) { this.routineDate = routineDate; }
 }
