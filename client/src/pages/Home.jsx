@@ -7,32 +7,34 @@ import { Link } from 'react-router-dom';
  */
 const Home = () => {
 	return (
-		<div className="flex-1 flex flex-col">
+		<div className="flex-1 flex flex-col bg-white ">
 			{/* Hero Section */}
-			<section className="py-16 md:py-24 px-4 bg-gradient-to-b from-blue-50/50 to-white text-center">
-				<div className="max-w-4xl mx-auto space-y-6">
-					<span className="inline-block bg-blue-100 text-blue-800 font-semibold px-4 py-1.5 rounded-full text-sm">
-						✨ Smart Scheduling Made Easy
-					</span>
-					<h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight">
-						AI Routine Maker
-					</h1>
-					<p className="text-xl sm:text-2xl font-semibold text-blue-600">
-						Plan your day. Achieve your goals.
-					</p>
-					<p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-						Create a personalized daily routine based on your goals, available time and daily schedule.
-					</p>
-					<div className="pt-4">
-						<Link
-							to="/create-routine"
-							className="inline-flex items-center px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
-						>
-							Create My Routine →
-						</Link>
+			<div className="">
+				<section className="flex align-center h-[80vh] md:h-[78vh] py-16 md:py-24 px-4 bg-gradient-to-b from-blue-50/50 to-white text-center">
+					<div className="max-w-4xl mx-auto space-y-6 self-center">
+						<span className="inline-block bg-blue-100 text-blue-800 font-semibold px-4 py-1.5 rounded-full text-sm">
+							✨ Smart Scheduling Made Easy
+						</span>
+						<h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight">
+							AI Routine Maker
+						</h1>
+						<p className="text-xl sm:text-2xl font-semibold text-blue-600">
+							Plan your day. Achieve your goals.
+						</p>
+						<p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+							Create a personalized daily routine based on your goals, available time and daily schedule.
+						</p>
+						<div className="pt-4">
+							<Link
+								to="/create-routine"
+								className="inline-flex items-center px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+							>
+								Create My Routine →
+							</Link>
+						</div>
 					</div>
-				</div>
-			</section>
+				</section>
+			</div>
 
 			{/* Feature Cards Section */}
 			{/* <section className="py-12 px-4 max-w-6xl mx-auto w-full"> */}

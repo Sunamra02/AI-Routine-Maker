@@ -29,6 +29,7 @@ const RoutineDetail = () => {
 		try {
 			await updateTaskStatus(taskId, completed);
 		} catch (error) {
+			console.error(error);
 			setRoutine((previous) => ({
 				...previous,
 				tasks: previous.tasks.map((item) => item.id === taskId ? { ...item, completed: !completed } : item),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { faRightToBracket, faRightFromBracket, faUser, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { faRightFromBracket, faUser, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { signupUser, loginUser, logoutUser, fetchCurrentUser } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -175,6 +175,7 @@ const Login = () => {
       window.dispatchEvent(new Event('auth-change'));
       showToast('Logged out successfully.', 'info');
     } catch (err) {
+      console.error('Logout error:', err);
       showToast('Logout failed.', 'error');
     }
   };

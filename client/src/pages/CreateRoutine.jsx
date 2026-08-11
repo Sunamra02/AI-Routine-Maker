@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { faArrowRight, faPenNib, faClock, faPenToSquare, faTrash, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
+import { useNavigate } from 'react-router-dom';
+import { faPenNib, faClock, faPenToSquare, faTrash, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { fetchCurrentUser, getAiRoutineSuggestions, getAiTaskSuggestions, createRoutine } from '../services/api';
 import { useToast } from '../context/ToastContext';
