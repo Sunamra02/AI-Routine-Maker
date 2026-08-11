@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { faArrowRight, faPenNib, faClock, faPenToSquare, faTrash, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { fetchCurrentUser, getAiRoutineSuggestions, getAiTaskSuggestions, createRoutine } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -274,7 +276,7 @@ const CreateRoutine = () => {
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
         <div className="bg-amber-50 border border-amber-200 p-8 rounded-2xl max-w-md w-full space-y-4">
           <span className="text-4xl">🔒</span>
-          <h2 className="text-xl font-bold text-amber-900">Login or Sign Up Required</h2>
+          <h2 className="text-xl font-bold text-amber-900">Login Required</h2>
           <p className="text-amber-700 text-sm">
             Only registered users can generate and save daily routines to their account.
           </p>
@@ -282,7 +284,7 @@ const CreateRoutine = () => {
             to="/login"
             className="inline-block px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md transition-colors"
           >
-            Sign Up / Log In →
+            Log In <FontAwesomeIcon icon={faArrowRight} />
           </Link>
         </div>
       </div>
@@ -291,7 +293,7 @@ const CreateRoutine = () => {
 
   return (
     <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-8">
-      
+
       {/* Step Indicator Header */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
@@ -338,7 +340,7 @@ const CreateRoutine = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  Available Study/Work Hours per day
+                  Available Work Hours per day
                 </label>
                 <input
                   type="number"
@@ -399,9 +401,9 @@ const CreateRoutine = () => {
               className="flex-1 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-base shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-75"
             >
               {isAiRoutineLoading ? (
-                <span>🤖 Requesting Groq AI Suggestions...</span>
+                <span>Requesting AI Suggestions...</span>
               ) : (
-                <span>✨ Get AI Routine Suggestions (3 Options)</span>
+                <span>Get AI Routine Suggestions (3 Options)</span>
               )}
             </button>
 
@@ -409,7 +411,7 @@ const CreateRoutine = () => {
               onClick={handleChooseManualRoutine}
               className="py-4 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-base transition-colors cursor-pointer border border-slate-300"
             >
-              ✍️ Create Manually
+              <FontAwesomeIcon icon={faPenNib} /> Create Manually
             </button>
           </div>
         </div>
@@ -435,17 +437,19 @@ const CreateRoutine = () => {
             </button>
           </div>
 
+          {/* Debug */}
+          {/* {console.log('AI Routine Options:', aiRoutineOptions)} */}
+
           {/* 3 AI Cards */}
           <div className="space-y-4">
             {aiRoutineOptions.map((opt) => (
               <div
                 key={opt.id}
                 onClick={() => setSelectedRoutineOption(opt)}
-                className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${
-                  selectedRoutineOption?.id === opt.id
-                    ? 'border-blue-600 bg-blue-50/50 shadow-md'
-                    : 'border-slate-200 bg-white hover:border-blue-300'
-                }`}
+                className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${selectedRoutineOption?.id === opt.id
+                  ? 'border-blue-600 bg-blue-50/50 shadow-md'
+                  : 'border-slate-200 bg-white hover:border-blue-300'
+                  }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
@@ -481,7 +485,7 @@ const CreateRoutine = () => {
               className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-75"
             >
               {isAiTaskLoading ? (
-                <span>🤖 Generating Task List...</span>
+                <span>Generating Task List...</span>
               ) : (
                 <span>Continue to Task Selection →</span>
               )}
@@ -519,11 +523,10 @@ const CreateRoutine = () => {
               {suggestedTasks.map((task, idx) => (
                 <div
                   key={idx}
-                  className={`p-4 rounded-xl border transition-all ${
-                    selectedTaskIndices.includes(idx)
-                      ? 'bg-blue-50/40 border-blue-200'
-                      : 'bg-slate-50 border-slate-200 opacity-60'
-                  }`}
+                  className={`p-4 rounded-xl border transition-all ${selectedTaskIndices.includes(idx)
+                    ? 'bg-blue-50/40 border-blue-200'
+                    : 'bg-slate-50 border-slate-200 opacity-60'
+                    }`}
                 >
                   {editingTaskIndex === idx ? (
                     /* Task Edit Form */
@@ -583,7 +586,9 @@ const CreateRoutine = () => {
                         </span>
                         <div>
                           <p className="font-semibold text-slate-800 text-sm">{task.activity}</p>
-                          <span className="text-xs text-slate-500">⏱️ {task.duration} min</span>
+                          <span className="text-xs text-slate-500">
+                            <FontAwesomeIcon icon={faClock} /> {task.duration} min
+                          </span>
                         </div>
                       </div>
 
@@ -593,14 +598,14 @@ const CreateRoutine = () => {
                           onClick={() => setEditingTaskIndex(idx)}
                           className="text-xs text-blue-600 hover:text-blue-800 font-semibold p-1 cursor-pointer"
                         >
-                          ✏️ Edit
+                          <FontAwesomeIcon icon={faPenToSquare} /> Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveTask(idx)}
                           className="text-xs text-red-600 hover:text-red-800 font-semibold p-1 cursor-pointer"
                         >
-                          🗑️
+                          <FontAwesomeIcon icon={faTrash} />
                         </button>
                       </div>
                     </div>
@@ -658,7 +663,7 @@ const CreateRoutine = () => {
               disabled={isSaving}
               className="w-full sm:w-auto px-10 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg shadow-md transition-all cursor-pointer disabled:opacity-75"
             >
-              {isSaving ? 'Saving Routine...' : '💾 Confirm & Save Routine to Account'}
+              {isSaving ? 'Saving Routine...' : <><FontAwesomeIcon icon={faFloppyDisk} /> Confirm & Save</>}
             </button>
           </div>
         </div>

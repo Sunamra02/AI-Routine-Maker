@@ -9,6 +9,7 @@ import { fetchLatestRoutine, fetchCurrentUser } from '../services/api';
  */
 const Progress = () => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [todayStats, setTodayStats] = useState({
     completed: 0,
     total: 0,
@@ -31,9 +32,12 @@ const Progress = () => {
 
     fetchCurrentUser()
       .then((currUser) => {
+        setLoading(false);
         if (!isMounted) return;
         setUser(currUser);
-        if (!currUser) return null;
+        if (!currUser) {
+          return null
+        };
         return fetchLatestRoutine();
       })
       .then((routine) => {
@@ -59,9 +63,11 @@ const Progress = () => {
             )
           );
         }
+        setLoading(false);
       })
       .catch((err) => {
         console.error('Error loading routine stats:', err);
+        setLoading(false);
       });
 
     return () => {
@@ -69,20 +75,51 @@ const Progress = () => {
     };
   }, []);
 
+  if (loading) {
+    console.log(user);
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 text-slate-500">
+        Loading your current progress...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
+        <div className="bg-white p-8 sm:p-12 rounded-2xl border border-slate-200 shadow-sm max-w-md w-full space-y-6">
+          <div className="text-5xl">🔒</div>
+          <h2 className="text-2xl font-bold text-slate-800">Login Required</h2>
+          <p className="text-slate-600 text-sm">
+            Please log in or create an account to view and manage your personalized daily routines.
+          </p>
+          <div>
+            <Link
+              to="/login"
+              className="inline-block px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base shadow-md transition-colors"
+            >
+              Sign Up / Log In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-10">
-      
+
       {/* Page Title */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-slate-900">Your Progress Dashboard</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Progress Dashboard</h1>
         <p className="text-slate-600 mt-2 text-sm sm:text-base">
-          Track your daily achievements and consistency throughout the week.
+          Your daily achievements and consistency throughout the week.
         </p>
       </div>
 
       {/* Today's Overview Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        
+
         {/* Today's Completion Card */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>

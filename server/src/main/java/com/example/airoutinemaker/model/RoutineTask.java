@@ -2,6 +2,8 @@ package com.example.airoutinemaker.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import java.time.LocalTime;
 
@@ -33,8 +35,14 @@ public class RoutineTask {
     @JsonBackReference
     private Routine routine;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private User user;
+
     // Default Constructor
-    public RoutineTask() {}
+    public RoutineTask() {
+    }
 
     // Parameterized Constructor
     public RoutineTask(LocalTime time, String activity, Integer duration, Boolean completed) {
@@ -91,5 +99,13 @@ public class RoutineTask {
 
     public void setRoutine(Routine routine) {
         this.routine = routine;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

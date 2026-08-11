@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { faClock, faPenToSquare, faTrash, faFloppyDisk,faCancel } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { fetchRoutineById, updateRoutine, fetchCurrentUser } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -149,7 +151,7 @@ const EditRoutine = () => {
 
   return (
     <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-8">
-      
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -160,14 +162,14 @@ const EditRoutine = () => {
         </div>
         <Link
           to="/my-routine"
-          className="text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 px-4 py-2 rounded-xl"
+          className="text-sm font-semibold text-red-600 hover:text-red-800 transition-colors bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl"
         >
-          Cancel & Back
+          <FontAwesomeIcon icon={faCancel} /> Cancel Edit
         </Link>
       </div>
 
       <form onSubmit={handleSaveAllChanges} className="space-y-6">
-        
+
         {/* Main Settings Card */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2">
@@ -301,7 +303,9 @@ const EditRoutine = () => {
                       </span>
                       <div>
                         <p className="font-semibold text-slate-800 text-sm">{task.activity}</p>
-                        <span className="text-xs text-slate-500">⏱️ {task.duration} min</span>
+                        <span className="text-xs text-slate-500">
+                          <FontAwesomeIcon icon={faClock} /> {task.duration} min
+                        </span>
                       </div>
                     </div>
 
@@ -311,14 +315,14 @@ const EditRoutine = () => {
                         onClick={() => setEditingTaskIdx(idx)}
                         className="text-xs text-blue-600 hover:text-blue-800 font-semibold p-1 cursor-pointer"
                       >
-                        ✏️ Edit
+                        <FontAwesomeIcon icon={faPenToSquare} /> Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleRemoveTask(idx)}
                         className="text-xs text-red-600 hover:text-red-800 font-semibold p-1 cursor-pointer"
                       >
-                        🗑️ Remove
+                        <FontAwesomeIcon icon={faTrash} /> Remove
                       </button>
                     </div>
                   </>
@@ -373,7 +377,7 @@ const EditRoutine = () => {
             disabled={isSaving}
             className="w-full sm:w-auto px-10 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg shadow-md transition-all cursor-pointer disabled:opacity-75"
           >
-            {isSaving ? 'Saving Changes...' : '💾 Save Routine Updates'}
+            {isSaving ? 'Saving Changes...' : <FontAwesomeIcon icon={faFloppyDisk} />} Save Routine Updates
           </button>
         </div>
 

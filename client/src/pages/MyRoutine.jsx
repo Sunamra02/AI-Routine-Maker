@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { faPenToSquare, faClipboardList, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import RoutineCard from '../components/RoutineCard';
 import { fetchLatestRoutine, updateTaskStatus, deleteRoutine, fetchCurrentUser } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -101,7 +103,7 @@ const MyRoutine = () => {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 text-slate-500">
-        Loading your active routine...
+        Loading your current progress...
       </div>
     );
   }
@@ -132,10 +134,12 @@ const MyRoutine = () => {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
         <div className="bg-white p-8 sm:p-12 rounded-2xl border border-slate-200 shadow-sm max-w-md w-full space-y-6">
-          <div className="text-5xl">📋</div>
+          <div className="text-5xl">
+            <FontAwesomeIcon icon={faClipboardList} />
+          </div>
           <h2 className="text-2xl font-bold text-slate-800">No active routine found</h2>
           <p className="text-slate-600 text-sm">
-            You haven't created a routine yet. Let Groq AI generate a personalized schedule or create one manually!
+            You haven't created a routine yet. Let AI generate a personalized schedule or create one manually!
           </p>
           <div>
             <Link
@@ -157,11 +161,11 @@ const MyRoutine = () => {
 
   return (
     <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-8">
-      
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">My Daily Routine</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Your Daily Routine</h1>
           <p className="text-slate-600 text-sm mt-1">
             Goal: <span className="font-semibold text-blue-700">{routineData.goal}</span> | Pace: <span className="font-medium text-slate-700">{routineData.difficulty}</span>
           </p>
@@ -172,14 +176,14 @@ const MyRoutine = () => {
             to={`/edit-routine/${routineData.id}`}
             className="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl border border-blue-200"
           >
-            ✏️ Edit Routine
+            <FontAwesomeIcon icon={faPenToSquare} /> Edit Routine
           </Link>
 
           <button
             onClick={handleDeleteRoutine}
             className="inline-flex items-center text-sm font-semibold text-red-600 hover:text-red-800 transition-colors bg-red-50 hover:bg-red-100 px-3.5 py-2 rounded-xl border border-red-200 cursor-pointer"
           >
-            🗑️ Delete Routine
+            <FontAwesomeIcon icon={faTrash} /> Delete Routine
           </button>
         </div>
       </div>

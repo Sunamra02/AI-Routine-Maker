@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { faRightToBracket, faRightFromBracket, faUser } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { fetchCurrentUser, logoutUser } from '../services/api';
 
 /**
@@ -47,17 +49,16 @@ const Navbar = () => {
 
   // Helper function for NavLink styling
   const navLinkClass = ({ isActive }) =>
-    `px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-      isActive
-        ? 'bg-blue-600 text-white shadow-sm'
-        : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100'
+    `px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${isActive
+      ? 'bg-blue-600 text-white shadow-sm'
+      : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100'
     }`;
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-xs">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          
+
           {/* Logo Brand */}
           <NavLink to="/" className="flex items-center space-x-2 text-xl font-bold text-slate-800">
             <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-2.5 py-1 rounded-lg text-lg shadow-xs">
@@ -88,37 +89,35 @@ const Navbar = () => {
                 <NavLink
                   to="/login"
                   className={({ isActive }) =>
-                    `px-3 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-1.5 ${
-                      isActive
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    `px-3 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-1.5 ${isActive
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`
                   }
                 >
-                  <span>👤</span>
+                  <span><FontAwesomeIcon icon={faUser} /></span>
                   <span>{userSession.username}</span>
                 </NavLink>
                 {/* Logout Button */}
-                <button
+                {/* <button
                   onClick={handleLogout}
                   className="px-3 py-2 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer border border-red-200"
                   title="Log out"
                 >
                   🚪 Logout
-                </button>
+                </button> */}
               </div>
             ) : (
               <NavLink
                 to="/login"
                 className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base flex items-center gap-1.5 ${
-                    isActive
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  `px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base flex items-center gap-1.5 ${isActive
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`
                 }
               >
-                <span>👤</span>
+                <span><FontAwesomeIcon icon={faRightToBracket} /></span>
                 <span>Login</span>
               </NavLink>
             )}
@@ -151,8 +150,7 @@ const Navbar = () => {
             to="/"
             onClick={() => setIsMobileMenuOpen(false)}
             className={({ isActive }) =>
-              `block px-4 py-2 rounded-md text-base font-medium ${
-                isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              `block px-4 py-2 rounded-md text-base font-medium ${isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`
             }
           >
@@ -162,8 +160,7 @@ const Navbar = () => {
             to="/create-routine"
             onClick={() => setIsMobileMenuOpen(false)}
             className={({ isActive }) =>
-              `block px-4 py-2 rounded-md text-base font-medium ${
-                isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              `block px-4 py-2 rounded-md text-base font-medium ${isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`
             }
           >
@@ -173,8 +170,7 @@ const Navbar = () => {
             to="/my-routine"
             onClick={() => setIsMobileMenuOpen(false)}
             className={({ isActive }) =>
-              `block px-4 py-2 rounded-md text-base font-medium ${
-                isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              `block px-4 py-2 rounded-md text-base font-medium ${isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`
             }
           >
@@ -184,8 +180,7 @@ const Navbar = () => {
             to="/progress"
             onClick={() => setIsMobileMenuOpen(false)}
             className={({ isActive }) =>
-              `block px-4 py-2 rounded-md text-base font-medium ${
-                isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              `block px-4 py-2 rounded-md text-base font-medium ${isActive ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`
             }
           >
@@ -199,8 +194,7 @@ const Navbar = () => {
                 to="/login"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={({ isActive }) =>
-                  `block px-4 py-2 rounded-md text-base font-medium ${
-                    isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                  `block px-4 py-2 rounded-md text-base font-medium ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
                   }`
                 }
               >
@@ -213,7 +207,7 @@ const Navbar = () => {
                 }}
                 className="block w-full text-left px-4 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 cursor-pointer"
               >
-                🚪 Log Out
+                <FontAwesomeIcon icon={faRightFromBracket} /> Log Out
               </button>
             </>
           ) : (
@@ -221,12 +215,11 @@ const Navbar = () => {
               to="/login"
               onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) =>
-                `block px-4 py-2 rounded-md text-base font-medium ${
-                  isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                `block px-4 py-2 rounded-md text-base font-medium ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
                 }`
               }
             >
-              👤 Login
+              <FontAwesomeIcon icon={faRightToBracket} /> Login
             </NavLink>
           )}
         </div>

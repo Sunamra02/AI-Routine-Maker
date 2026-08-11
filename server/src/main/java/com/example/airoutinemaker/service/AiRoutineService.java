@@ -45,74 +45,74 @@ public class AiRoutineService {
         validateApiKey();
 
         String systemPrompt = """
-            You are an expert student daily-routine planner AI.
-            Based on the student's inputs, suggest exactly 3 realistic, distinct daily routine options.
-            Return ONLY raw JSON with no Markdown formatting, code fences, or explanation text.
-            JSON structure MUST be:
-            {
-              "options": [
+                You are an expert student daily-routine planner AI.
+                Based on the student's inputs, suggest exactly 3 realistic, distinct daily routine options.
+                Return ONLY raw JSON with no Markdown formatting, code fences, or explanation text.
+                JSON structure MUST be:
                 {
-                  "id": "option_1",
-                  "title": "Short Title",
-                  "description": "Clear 1-2 sentence description of routine strategy.",
-                  "focusStyle": "Morning Focused / Balanced / Intensive Revision"
+                  "options": [
+                    {
+                      "id": "option_1",
+                      "title": "Short Title",
+                      "description": "Clear 1-2 sentence description of routine strategy.",
+                      "focusStyle": "Morning Focused / Balanced / Intensive Revision"
+                    }
+                  ]
                 }
-              ]
-            }
-            """;
+                """;
 
         String userPrompt = String.format(
-            "Student Goal: %s\nAvailable Hours: %d\nWake-up Time: %s\nSleep Time: %s\nDifficulty/Pace: %s",
-            request.getGoal(),
-            request.getAvailableHours() != null ? request.getAvailableHours() : 6,
-            request.getWakeUpTime() != null ? request.getWakeUpTime().toString() : "07:00",
-            request.getSleepTime() != null ? request.getSleepTime().toString() : "23:00",
-            request.getDifficulty() != null ? request.getDifficulty() : "Intermediate"
-        );
+                "Student Goal: %s\nAvailable Hours: %d\nWake-up Time: %s\nSleep Time: %s\nDifficulty/Pace: %s",
+                request.getGoal(),
+                request.getAvailableHours() != null ? request.getAvailableHours() : 6,
+                request.getWakeUpTime() != null ? request.getWakeUpTime().toString() : "07:00",
+                request.getSleepTime() != null ? request.getSleepTime().toString() : "23:00",
+                request.getDifficulty() != null ? request.getDifficulty() : "Intermediate");
 
         String jsonResponse = callGroqApi(systemPrompt, userPrompt);
         return parseRoutineSuggestions(jsonResponse);
     }
 
     /**
-     * Call Groq AI API to suggest detailed task breakdown for chosen routine option.
+     * Call Groq AI API to suggest detailed task breakdown for chosen routine
+     * option.
      */
     public AiTaskSuggestResponse suggestTasks(AiTaskSuggestRequest request) {
         validateApiKey();
 
         String systemPrompt = """
-            You are an expert student daily-routine planner AI.
-            Generate a realistic, achievable, non-overlapping task schedule for the student's routine.
-            Keep all tasks strictly between wake-up time and sleep time.
-            Return ONLY raw JSON with no Markdown formatting, code fences, or explanation text.
-            JSON structure MUST be:
-            {
-              "tasks": [
+                You are an expert student daily-routine planner AI.
+                Generate a realistic, achievable, non-overlapping task schedule for the student's routine.
+                Keep all tasks strictly between wake-up time and sleep time.
+                Return ONLY raw JSON with no Markdown formatting, code fences, or explanation text.
+                JSON structure MUST be:
                 {
-                  "time": "HH:mm",
-                  "activity": "Clear activity description",
-                  "duration": 45
+                  "tasks": [
+                    {
+                      "time": "HH:mm",
+                      "activity": "Clear activity description",
+                      "duration": 45
+                    }
+                  ]
                 }
-              ]
-            }
-            Constraints:
-            - Use valid 24-hour HH:mm time formats.
-            - Duration must be positive integer minutes (10 to 120).
-            - Generate 5 to 9 structured daily tasks (exercise, meals, study sessions, breaks, review).
-            - No duplicate tasks or overlapping times.
-            - Do NOT include dangerous, medical, or extreme advice.
-            """;
+                Constraints:
+                - Use valid 24-hour HH:mm time formats.
+                - Duration must be positive integer minutes (10 to 120).
+                - Generate 5 to 9 structured daily tasks (exercise, meals, study sessions, breaks, review).
+                - No duplicate tasks or overlapping times.
+                - Do NOT include dangerous, medical, or extreme advice.
+                """;
 
         String userPrompt = String.format(
-            "Goal: %s\nRoutine Style: %s\nRoutine Description: %s\nAvailable Study Hours: %d\nWake Time: %s\nSleep Time: %s\nPace: %s",
-            request.getGoal(),
-            request.getSelectedRoutineTitle() != null ? request.getSelectedRoutineTitle() : "Balanced Schedule",
-            request.getSelectedRoutineDescription() != null ? request.getSelectedRoutineDescription() : "Balanced focus across the day",
-            request.getAvailableHours() != null ? request.getAvailableHours() : 6,
-            request.getWakeUpTime() != null ? request.getWakeUpTime().toString() : "07:00",
-            request.getSleepTime() != null ? request.getSleepTime().toString() : "23:00",
-            request.getDifficulty() != null ? request.getDifficulty() : "Intermediate"
-        );
+                "Goal: %s\nRoutine Style: %s\nRoutine Description: %s\nAvailable Study Hours: %d\nWake Time: %s\nSleep Time: %s\nPace: %s",
+                request.getGoal(),
+                request.getSelectedRoutineTitle() != null ? request.getSelectedRoutineTitle() : "Balanced Schedule",
+                request.getSelectedRoutineDescription() != null ? request.getSelectedRoutineDescription()
+                        : "Balanced focus across the day",
+                request.getAvailableHours() != null ? request.getAvailableHours() : 6,
+                request.getWakeUpTime() != null ? request.getWakeUpTime().toString() : "07:00",
+                request.getSleepTime() != null ? request.getSleepTime().toString() : "23:00",
+                request.getDifficulty() != null ? request.getDifficulty() : "Intermediate");
 
         String jsonResponse = callGroqApi(systemPrompt, userPrompt);
         return parseAndValidateTasks(jsonResponse, request.getWakeUpTime(), request.getSleepTime());
@@ -139,9 +139,8 @@ public class AiRoutineService {
             requestBody.put("response_format", Map.of("type", "json_object"));
 
             List<Map<String, String>> messages = List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user", "content", userPrompt)
-            );
+                    Map.of("role", "system", "content", systemPrompt),
+                    Map.of("role", "user", "content", userPrompt));
             requestBody.put("messages", messages);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
@@ -150,6 +149,9 @@ public class AiRoutineService {
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 throw new RuntimeException("Groq API call returned HTTP " + response.getStatusCode());
             }
+
+            // System.out.println("Groq API Response: " + response.getBody()); // Debugging
+            // output
 
             // Extract completion message content from response
             JsonNode root = objectMapper.readTree(response.getBody());
@@ -169,7 +171,8 @@ public class AiRoutineService {
      * Remove markdown code block fences if returned by AI.
      */
     private String cleanJsonText(String rawText) {
-        if (rawText == null) return "{}";
+        if (rawText == null)
+            return "{}";
         String clean = rawText.trim();
         if (clean.startsWith("```json")) {
             clean = clean.substring(7);
@@ -203,9 +206,12 @@ public class AiRoutineService {
             }
 
             if (options.isEmpty()) {
-                options.add(new AiRoutineOptionDTO("opt_1", "Balanced Routine", "Steady study pace distributed throughout the day.", "Balanced"));
-                options.add(new AiRoutineOptionDTO("opt_2", "Intensive Revision Routine", "High focus sessions with targeted review.", "Intensive"));
-                options.add(new AiRoutineOptionDTO("opt_3", "Morning Focus Routine", "Heavy study load completed early in the day.", "Morning Focus"));
+                options.add(new AiRoutineOptionDTO("opt_1", "Balanced Routine",
+                        "Steady study pace distributed throughout the day.", "Balanced"));
+                options.add(new AiRoutineOptionDTO("opt_2", "Intensive Revision Routine",
+                        "High focus sessions with targeted review.", "Intensive"));
+                options.add(new AiRoutineOptionDTO("opt_3", "Morning Focus Routine",
+                        "Heavy study load completed early in the day.", "Morning Focus"));
             }
 
             return new AiRoutineSuggestResponse(options);
@@ -242,12 +248,14 @@ public class AiRoutineService {
                     }
 
                     // Validate Duration
-                    if (duration <= 0) duration = 30;
-                    if (duration > 180) duration = 120;
+                    if (duration <= 0)
+                        duration = 30;
+                    if (duration > 180)
+                        duration = 120;
 
                     validTasks.add(new AiTaskDTO(parsedTime.format(TIME_FORMATTER), activity.trim(), duration));
 
-                    if (validTasks.size() >= 12) break; // Limit to maximum 12 tasks
+                    // if (validTasks.size() >= 12) break; // Limit to maximum 12 tasks
                 }
             }
 

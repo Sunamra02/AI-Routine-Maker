@@ -60,6 +60,7 @@ public class RoutineService {
                         taskDTO.getDuration() != null ? taskDTO.getDuration() : 30,
                         false
                 );
+                task.setUser(user);
                 routine.addTask(task);
             }
         }
@@ -125,6 +126,7 @@ public class RoutineService {
                         taskDTO.getDuration() != null ? taskDTO.getDuration() : 30,
                         false
                 );
+                task.setUser(user);
                 routine.addTask(task);
             }
         }
