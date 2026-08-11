@@ -4,17 +4,17 @@ const typeStyles = {
     success: {
         backgroundColor: '#059669',
         textColor: '#ffffff',
-        icon: '✨',
+        icon: '✅',
     },
     error: {
         backgroundColor: '#dc2626',
         textColor: '#ffffff',
-        icon: '⚠️',
+        icon: '❌',
     },
     warning: {
         backgroundColor: '#d97706',
         textColor: '#ffffff',
-        icon: '⚡',
+        icon: '⚠️',
     },
     info: {
         backgroundColor: '#2563eb',

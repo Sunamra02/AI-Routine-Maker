@@ -191,7 +191,7 @@ const Login = () => {
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Welcome, {userSession.username}!</h1>
             <p className="text-slate-500 text-sm">
-              You are currently logged in to your account. You can now create and manage your routines.
+              You are currently logged in to your account. You can now create, view, and manage your routines.
             </p>
             <div className="pt-2 space-y-3">
               <button
@@ -199,6 +199,12 @@ const Login = () => {
                 className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-sm transition-colors cursor-pointer"
               >
                 Create Routine <FontAwesomeIcon icon={faArrowRight} />
+              </button>
+              <button
+                onClick={() => navigate('/my-routine')}
+                className="w-full py-3.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-base shadow-sm transition-colors cursor-pointer"
+              >
+                View Routines <FontAwesomeIcon icon={faArrowRight} />
               </button>
               <button
                 onClick={handleLogout}

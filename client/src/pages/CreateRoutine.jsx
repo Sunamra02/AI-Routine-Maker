@@ -4,6 +4,7 @@ import { faArrowRight, faPenNib, faClock, faPenToSquare, faTrash, faFloppyDisk }
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { fetchCurrentUser, getAiRoutineSuggestions, getAiTaskSuggestions, createRoutine } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import LoginRequired from '../components/LoginRequired';
 
 /**
  * CreateRoutine Page Component
@@ -74,53 +75,53 @@ const CreateRoutine = () => {
 	const [isAiTaskLoading, setIsAiTaskLoading] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 
-    const timeToMinutes = (time) => {
-        const [hours, minutes] = time.split(':').map(Number);
-        return hours * 60 + minutes;
-    };
+	const timeToMinutes = (time) => {
+		const [hours, minutes] = time.split(':').map(Number);
+		return hours * 60 + minutes;
+	};
 
-    const validateRoutinePreferences = () => {
-        if (!mainGoal.trim()) {
-            showToast('Please enter your Main Goal.', 'warning');
-            return false;
-        }
+	const validateRoutinePreferences = () => {
+		if (!mainGoal.trim()) {
+			showToast('Please enter your Main Goal.', 'warning');
+			return false;
+		}
 
-        if (!routineDate || routineDate < localToday) {
-            showToast('Please select today or a future routine date.', 'warning');
-            return false;
-        }
+		if (!routineDate || routineDate < localToday) {
+			showToast('Please select today or a future routine date.', 'warning');
+			return false;
+		}
 
-        const workHours = Number(availableHours);
-        if (!Number.isInteger(workHours) || workHours < 1 || workHours > 18) {
-            showToast('Please enter whole work hours between 1 and 18.', 'warning');
-            return false;
-        }
+		const workHours = Number(availableHours);
+		if (!Number.isInteger(workHours) || workHours < 1 || workHours > 18) {
+			showToast('Please enter whole work hours between 1 and 18.', 'warning');
+			return false;
+		}
 
-        if (!wakeupTime || !sleepTime) {
-            showToast('Please choose both a routine start time and end time.', 'warning');
-            return false;
-        }
+		if (!wakeupTime || !sleepTime) {
+			showToast('Please choose both a routine start time and end time.', 'warning');
+			return false;
+		}
 
-        if (routineDate === localToday && wakeupTime < currentTime()) {
-            showToast('Today’s routine start time cannot be in the past.', 'warning');
-            return false;
-        }
+		if (routineDate === localToday && wakeupTime < currentTime()) {
+			showToast('Today’s routine start time cannot be in the past.', 'warning');
+			return false;
+		}
 
-        const startMinutes = timeToMinutes(wakeupTime);
-        const endMinutes = timeToMinutes(sleepTime);
-        if (endMinutes <= startMinutes) {
-            showToast('Routine end time must be after the routine start time.', 'warning');
-            return false;
-        }
+		const startMinutes = timeToMinutes(wakeupTime);
+		const endMinutes = timeToMinutes(sleepTime);
+		if (endMinutes <= startMinutes) {
+			showToast('Routine end time must be after the routine start time.', 'warning');
+			return false;
+		}
 
-        const availableMinutes = endMinutes - startMinutes;
-        if (workHours * 60 > availableMinutes) {
-            showToast('Available work hours exceed the time available in this routine.', 'warning');
-            return false;
-        }
+		const availableMinutes = endMinutes - startMinutes;
+		if (workHours * 60 > availableMinutes) {
+			showToast('Available work hours exceed the time available in this routine.', 'warning');
+			return false;
+		}
 
-        return true;
-    };
+		return true;
+	};
 
 	/**
 	 * Step 1 -> Step 2: Request AI Routine Suggestions
@@ -324,23 +325,7 @@ const CreateRoutine = () => {
 	}
 
 	if (!currentUser) {
-		return (
-			<div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-				<div className="bg-amber-50 border border-amber-200 p-8 rounded-2xl max-w-md w-full space-y-4">
-					<span className="text-4xl">🔒</span>
-					<h2 className="text-xl font-bold text-amber-900">Login Required</h2>
-					<p className="text-amber-700 text-sm">
-						Only registered users can generate and save daily routines to their account.
-					</p>
-					<Link
-						to="/login"
-						className="inline-block px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md transition-colors"
-					>
-						Log In <FontAwesomeIcon icon={faArrowRight} />
-					</Link>
-				</div>
-			</div>
-		);
+		return <LoginRequired />;
 	}
 
 	return (

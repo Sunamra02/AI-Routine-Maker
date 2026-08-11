@@ -1,13 +1,90 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import LoginRequired from '../components/LoginRequired';
 import { fetchCurrentUser, fetchRoutinesForDate } from '../services/api';
+
 const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
 const Progress = () => {
-  const [routines, setRoutines] = useState([]); const [loading, setLoading] = useState(true); const [user, setUser] = useState(null);
-  useEffect(() => { fetchCurrentUser().then((currentUser) => { setUser(currentUser); return currentUser ? fetchRoutinesForDate(today()) : []; }).then(setRoutines).catch(() => setRoutines([])).finally(() => setLoading(false)); }, []);
-  if (loading) return <div className="flex-1 flex items-center justify-center p-8 text-slate-500">Loading today’s progress…</div>;
-  if (!user) return <div className="flex-1 flex flex-col items-center justify-center py-20"><h2 className="text-2xl font-bold">Login Required</h2><Link to="/login" className="mt-4 text-blue-600 font-semibold">Sign Up / Log In</Link></div>;
-  const totals = routines.reduce((sum, routine) => ({ total: sum.total + (routine.tasks?.length || 0), completed: sum.completed + (routine.tasks?.filter((task) => task.completed).length || 0) }), { total: 0, completed: 0 }); const percent = totals.total ? Math.round(totals.completed * 100 / totals.total) : 0;
-  return <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-6"><div><h1 className="text-3xl font-bold text-slate-900">Today’s Progress</h1><p className="text-slate-600">{today()}</p></div><div className="bg-white p-6 rounded-2xl border border-slate-200"><div className="flex justify-between font-semibold"><span>All today’s routines</span><span>{totals.completed}/{totals.total} ({percent}%)</span></div><div className="mt-3 h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-600" style={{ width: `${percent}%` }} /></div></div><div className="space-y-3"><h2 className="text-xl font-bold">Routines scheduled for today</h2>{routines.length === 0 ? <div className="bg-white p-6 rounded-2xl border border-slate-200 text-slate-600">No routines are scheduled for today.</div> : routines.map((routine) => { const total = routine.tasks?.length || 0; const completed = routine.tasks?.filter((task) => task.completed).length || 0; const routinePercent = total ? Math.round(completed * 100 / total) : 0; return <Link key={routine.id} to={`/routines/${routine.id}`} className="block bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-400"><div className="flex justify-between"><span className="font-bold text-slate-900">{routine.goal}</span><span className="font-semibold text-blue-700">{completed}/{total} ({routinePercent}%)</span></div><div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${routinePercent}%` }} /></div></Link>; })}</div></div>;
+	const [routines, setRoutines] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [user, setUser] = useState(null);
+
+	useEffect(() => {
+		fetchCurrentUser().then((currentUser) => {
+			setUser(currentUser);
+			return currentUser ? fetchRoutinesForDate(today()) : [];
+		}).then(setRoutines).catch(() => setRoutines([])).finally(() => setLoading(false));
+	}, []);
+
+	if (loading) {
+		return (
+			<div className="flex-1 flex items-center justify-center p-8 text-slate-500">
+				Loading today’s progress…
+			</div>
+		);
+	}
+
+	if (!user) {
+		return <LoginRequired />;
+	}
+
+
+	const totals = routines.reduce((sum, routine) => ({
+		total: sum.total + (routine.tasks?.length || 0),
+		completed: sum.completed + (routine.tasks?.filter((task) => task.completed).length || 0),
+	}), { total: 0, completed: 0 });
+	const percent = totals.total ? Math.round(totals.completed * 100 / totals.total) : 0;
+
+	return (
+		<div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-6">
+			<div>
+				<h1 className="text-3xl font-bold text-slate-900">Today’s Progress</h1>
+				<p className="text-slate-600">{today()}</p>
+			</div>
+
+			<div className="bg-white p-6 rounded-2xl border border-slate-200">
+				<div className="flex justify-between font-semibold">
+					<span>All today’s routines</span>
+					<span>{totals.completed}/{totals.total} ({percent}%)</span>
+				</div>
+				<div className="mt-3 h-3 bg-slate-100 rounded-full overflow-hidden">
+					<div className="h-full bg-blue-600" style={{ width: `${percent}%` }} />
+				</div>
+			</div>
+
+			<div className="space-y-3">
+				<h2 className="text-xl font-bold">Routines scheduled for today</h2>
+				{routines.length === 0 ? (
+					<div className="bg-white p-6 rounded-2xl border border-slate-200 text-slate-600">
+						No routines are scheduled for today.
+					</div>
+				) : (
+					routines.map((routine) => {
+						const total = routine.tasks?.length || 0;
+						const completed = routine.tasks?.filter((task) => task.completed).length || 0;
+						const routinePercent = total ? Math.round(completed * 100 / total) : 0;
+
+						return (
+							<Link
+								key={routine.id}
+								to={`/routines/${routine.id}`}
+								className="block bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-400"
+							>
+								<div className="flex justify-between">
+									<span className="font-bold text-slate-900">{routine.goal}</span>
+									<span className="font-semibold text-blue-700">{completed}/{total} ({routinePercent}%)</span>
+								</div>
+								<div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
+									<div className="h-full bg-emerald-500" style={{ width: `${routinePercent}%` }} />
+								</div>
+							</Link>
+						);
+					})
+				)}
+			</div>
+		</div>
+	);
 };
+
 export default Progress;

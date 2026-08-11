@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import LoginRequired from '../components/LoginRequired';
 import { fetchCurrentUser, fetchRoutines } from '../services/api';
 
 const MyRoutine = () => {
@@ -23,16 +24,8 @@ const MyRoutine = () => {
     }
 
     if (!user) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
-                <h2 className="text-2xl font-bold">
-                    Login Required
-                </h2>
-                <Link to="/login" className="mt-4 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold cursor-pointer">
-                    Log In
-                </Link>
-            </div>
-        );
+        return <LoginRequired />;
+
     }
 
     return (
