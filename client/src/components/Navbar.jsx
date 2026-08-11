@@ -61,9 +61,9 @@ const Navbar = () => {
 
           {/* Logo Brand */}
           <NavLink to="/" className="flex items-center space-x-2 text-xl font-bold text-slate-800">
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-2.5 py-1 rounded-lg text-lg shadow-xs">
+            {/* <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-2.5 py-1 rounded-lg text-lg shadow-xs">
               🤖
-            </span>
+            </span> */}
             <span className="tracking-tight text-blue-950">AI Routine Maker</span>
           </NavLink>
 
