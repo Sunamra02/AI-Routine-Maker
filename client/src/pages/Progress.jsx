@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchLatestRoutine } from '../services/api';
+import { fetchLatestRoutine, fetchCurrentUser } from '../services/api';
 
 /**
  * Progress Page Component
  * Displays today's task completion progress calculated from Spring Boot backend REST API
- * along with a clean weekly breakdown using simple CSS/Tailwind progress bars.
+ * along with consistency breakdown.
  */
 const Progress = () => {
+  const [user, setUser] = useState(null);
   const [todayStats, setTodayStats] = useState({
     completed: 0,
     total: 0,
@@ -27,9 +28,16 @@ const Progress = () => {
 
   useEffect(() => {
     let isMounted = true;
-    fetchLatestRoutine()
-      .then((routine) => {
+
+    fetchCurrentUser()
+      .then((currUser) => {
         if (!isMounted) return;
+        setUser(currUser);
+        if (!currUser) return null;
+        return fetchLatestRoutine();
+      })
+      .then((routine) => {
+        if (!isMounted || !routine) return;
         if (routine && routine.tasks && routine.tasks.length > 0) {
           const total = routine.tasks.length;
           const completed = routine.tasks.filter((t) => t.completed).length;
@@ -42,42 +50,24 @@ const Progress = () => {
             hasRoutine: true,
           });
 
-          // Determine current day of week (0 = Sun, 1 = Mon, ..., 6 = Sat)
           const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           const todayName = daysOfWeek[new Date().getDay()];
 
-          // Update current day's percentage dynamically in weekly chart
           setWeeklyData((prev) =>
             prev.map((item) =>
               item.day === todayName ? { ...item, percentage } : item
             )
           );
-        } else {
-          setTodayStats({
-            completed: 0,
-            total: 0,
-            percentage: 0,
-            hasRoutine: false,
-          });
         }
       })
       .catch((err) => {
-        console.error('Error loading routine stats from backend:', err);
-        if (isMounted) {
-          setTodayStats({
-            completed: 0,
-            total: 0,
-            percentage: 0,
-            hasRoutine: false,
-          });
-        }
+        console.error('Error loading routine stats:', err);
       });
 
     return () => {
       isMounted = false;
     };
   }, []);
-
 
   return (
     <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-10">
@@ -102,7 +92,7 @@ const Progress = () => {
             <h3 className="text-2xl font-bold text-slate-800 mt-3">
               {todayStats.hasRoutine ? `${todayStats.percentage}%` : '0%'}
             </h3>
-            <p className="text-slate-500 text-sm mt-1">Today's Progress</p>
+            <p className="text-slate-500 text-sm mt-1">Today's Goal Completion</p>
           </div>
 
           <div className="mt-4">
@@ -139,10 +129,10 @@ const Progress = () => {
               </Link>
             ) : (
               <Link
-                to="/create-routine"
+                to={user ? "/create-routine" : "/login"}
                 className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors inline-block"
               >
-                Create a routine first →
+                {user ? "Create a routine first →" : "Log in to track progress →"}
               </Link>
             )}
           </div>
@@ -154,7 +144,7 @@ const Progress = () => {
       <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Weekly Progress</h2>
+            <h2 className="text-xl font-bold text-slate-800">Weekly Consistency</h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-1">
               Consistency history across the current week.
             </p>

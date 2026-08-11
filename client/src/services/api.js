@@ -1,7 +1,7 @@
 /**
  * API Service Layer
- * Handles HTTP requests to the Spring Boot backend REST API.
- * Uses Vite environment variable VITE_API_URL for the backend base URL.
+ * Handles HTTP REST API requests to Spring Boot backend.
+ * Includes credentials: 'include' for secure HTTP session cookie authentication.
  */
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -17,79 +17,176 @@ async function handleResponse(response) {
         errorMessage = errorData.message || errorData.error;
       }
     } catch {
-      // Ignore JSON parse errors for non-JSON responses
+      // Non-JSON response
     }
     throw new Error(errorMessage);
+  }
+  // If no content (204)
+  if (response.status === 204) {
+    return null;
   }
   return response.json();
 }
 
 /**
- * Fetch all routines from Spring Boot backend
+ * Auth API: Sign Up
  */
-export async function fetchRoutines() {
-  const response = await fetch(`${API_BASE_URL}/api/routines`);
-  return handleResponse(response);
-}
-
-/**
- * Fetch the latest created routine
- */
-export async function fetchLatestRoutine() {
-  const routines = await fetchRoutines();
-  if (Array.isArray(routines) && routines.length > 0) {
-    // Return the routine created last (highest id or last element)
-    return routines[routines.length - 1];
-  }
-  return null;
-}
-
-/**
- * Fetch routine by ID
- */
-export async function fetchRoutineById(id) {
-  const response = await fetch(`${API_BASE_URL}/api/routines/${id}`);
-  return handleResponse(response);
-}
-
-/**
- * Create a new routine via Spring Boot backend API
- * @param {Object} payload - { goal, availableHours, wakeUpTime, sleepTime, difficulty }
- */
-export async function createRoutine(payload) {
-  const response = await fetch(`${API_BASE_URL}/api/routines`, {
+export async function signupUser(data) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Auth API: Log In
+ */
+export async function loginUser(data) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Auth API: Log Out
+ */
+export async function logoutUser() {
+  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Auth API: Get Current Authenticated User Profile
+ */
+export async function fetchCurrentUser() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * AI API: Get Routine Suggestions (3 options)
+ */
+export async function getAiRoutineSuggestions(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/ai/suggest-routines`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
   return handleResponse(response);
 }
 
 /**
+ * AI API: Get Task Suggestions for chosen routine
+ */
+export async function getAiTaskSuggestions(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/ai/suggest-tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Create and Save Routine via Spring Boot Backend
+ */
+export async function createRoutine(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/routines`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Update Existing Routine
+ */
+export async function updateRoutine(id, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/routines/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Fetch all routines for logged-in user
+ */
+export async function fetchRoutines() {
+  const response = await fetch(`${API_BASE_URL}/api/routines`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Fetch latest routine for logged-in user
+ */
+export async function fetchLatestRoutine() {
+  const response = await fetch(`${API_BASE_URL}/api/routines/latest`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  if (response.status === 204) return null;
+  return handleResponse(response);
+}
+
+/**
+ * Fetch routine by ID
+ */
+export async function fetchRoutineById(id) {
+  const response = await fetch(`${API_BASE_URL}/api/routines/${id}`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  return handleResponse(response);
+}
+
+/**
  * Update task completion status
- * @param {number} taskId
- * @param {boolean} completed
  */
 export async function updateTaskStatus(taskId, completed) {
   const response = await fetch(`${API_BASE_URL}/api/routines/tasks/${taskId}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ completed }),
   });
   return handleResponse(response);
 }
 
 /**
- * Delete a routine by ID
- * @param {number} id
+ * Delete routine by ID
  */
 export async function deleteRoutine(id) {
   const response = await fetch(`${API_BASE_URL}/api/routines/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   return handleResponse(response);
 }

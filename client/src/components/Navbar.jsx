@@ -1,34 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { fetchCurrentUser, logoutUser } from '../services/api';
 
 /**
  * Navbar Component
- * Displays the website header, logo, navigation links, login state, and mobile menu toggle.
+ * Displays the website header, logo, navigation links, authenticated user state, and logout.
+ * Uses session cookie-based authentication via /api/auth/me (fetchCurrentUser).
+ * Listens to custom 'auth-change' window events dispatched by Login page to react to login/logout.
  */
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userSession, setUserSession] = useState(null);
 
-  // Check login session state
-  const checkSession = () => {
-    const session = localStorage.getItem('user_session');
-    if (session) {
-      try {
-        setUserSession(JSON.parse(session));
-      } catch (e) {
-        setUserSession(null);
-      }
-    } else {
-      setUserSession(null);
-    }
-  };
+  /**
+   * Fetch current user from backend session cookie.
+   * Returns null if not authenticated.
+   */
+  const refreshUser = useCallback(async () => {
+    const user = await fetchCurrentUser();
+    setUserSession(user || null);
+  }, []);
 
   useEffect(() => {
-    checkSession();
-    // Listen for storage events when user logs in/out
-    window.addEventListener('storage', checkSession);
-    return () => window.removeEventListener('storage', checkSession);
-  }, []);
+    // Check current user on mount
+    refreshUser();
+
+    // Re-check user state when Login/Logout pages dispatch auth-change events
+    window.addEventListener('auth-change', refreshUser);
+    return () => window.removeEventListener('auth-change', refreshUser);
+  }, [refreshUser]);
+
+  /**
+   * Handle logout from navbar
+   */
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setUserSession(null);
+      window.dispatchEvent(new Event('auth-change'));
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   // Helper function for NavLink styling
   const navLinkClass = ({ isActive }) =>
@@ -65,19 +80,48 @@ const Navbar = () => {
             <NavLink to="/progress" className={navLinkClass}>
               Progress
             </NavLink>
-            <NavLink
-              to="/login"
-              className={({ isActive }) =>
-                `px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base flex items-center gap-1.5 ${
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`
-              }
-            >
-              <span>👤</span>
-              <span>{userSession ? userSession.username : 'Login'}</span>
-            </NavLink>
+
+            {/* Auth Area */}
+            {userSession ? (
+              <div className="flex items-center gap-2 ml-2">
+                {/* User badge */}
+                <NavLink
+                  to="/login"
+                  className={({ isActive }) =>
+                    `px-3 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`
+                  }
+                >
+                  <span>👤</span>
+                  <span>{userSession.username}</span>
+                </NavLink>
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-2 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer border border-red-200"
+                  title="Log out"
+                >
+                  🚪 Logout
+                </button>
+              </div>
+            ) : (
+              <NavLink
+                to="/login"
+                className={({ isActive }) =>
+                  `px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`
+                }
+              >
+                <span>👤</span>
+                <span>Login</span>
+              </NavLink>
+            )}
           </nav>
 
           {/* Mobile menu button */}
@@ -147,17 +191,44 @@ const Navbar = () => {
           >
             Progress
           </NavLink>
-          <NavLink
-            to="/login"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={({ isActive }) =>
-              `block px-4 py-2 rounded-md text-base font-medium ${
-                isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
-              }`
-            }
-          >
-            👤 {userSession ? `Account (${userSession.username})` : 'Login'}
-          </NavLink>
+
+          {/* Mobile Auth */}
+          {userSession ? (
+            <>
+              <NavLink
+                to="/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `block px-4 py-2 rounded-md text-base font-medium ${
+                    isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                  }`
+                }
+              >
+                👤 Account ({userSession.username})
+              </NavLink>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="block w-full text-left px-4 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 cursor-pointer"
+              >
+                🚪 Log Out
+              </button>
+            </>
+          ) : (
+            <NavLink
+              to="/login"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `block px-4 py-2 rounded-md text-base font-medium ${
+                  isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                }`
+              }
+            >
+              👤 Login
+            </NavLink>
+          )}
         </div>
       )}
     </header>

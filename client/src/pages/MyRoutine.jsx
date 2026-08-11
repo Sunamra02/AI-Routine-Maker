@@ -1,35 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import RoutineCard from '../components/RoutineCard';
-import { fetchLatestRoutine, updateTaskStatus, deleteRoutine } from '../services/api';
+import { fetchLatestRoutine, updateTaskStatus, deleteRoutine, fetchCurrentUser } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 /**
  * MyRoutine Page Component
- * Reads user routine from Spring Boot REST API backend, shows interactive checkbox cards,
- * updates task completion in DB, and displays current progress bar.
+ * Reads current authenticated user's active routine from Spring Boot REST API,
+ * provides interactive task checkbox toggles, progress bar, edit routine link, and deletion.
  */
 const MyRoutine = () => {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+
   const [routineData, setRoutineData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
-  // Read latest routine from Spring Boot backend on component mount
   useEffect(() => {
-    let isMounted = true;
-    fetchLatestRoutine()
-      .then((data) => {
-        if (isMounted) {
-          setRoutineData(data);
+    fetchCurrentUser()
+      .then((currUser) => {
+        setUser(currUser);
+        if (!currUser) {
           setLoading(false);
+          return;
         }
+        return fetchLatestRoutine();
+      })
+      .then((data) => {
+        setRoutineData(data || null);
+        setLoading(false);
       })
       .catch((err) => {
-        console.error('Failed to parse saved routine from backend:', err);
-        if (isMounted) setLoading(false);
+        console.error('Failed to fetch user routine:', err);
+        setLoading(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   /**
@@ -56,9 +61,13 @@ const MyRoutine = () => {
 
     try {
       await updateTaskStatus(taskId, nextCompletedState);
+      if (nextCompletedState) {
+        showToast(`Task "${currentTask.activity}" marked as completed! ✨`, 'success');
+      }
     } catch (err) {
-      console.error('Failed to update task completion status:', err);
-      // Revert state if backend call fails
+      console.error('Failed to update task status:', err);
+      showToast('Failed to update task completion status.', 'error');
+      // Revert UI
       setRoutineData((prev) => {
         if (!prev) return prev;
         return {
@@ -77,42 +86,63 @@ const MyRoutine = () => {
   const handleDeleteRoutine = async () => {
     if (!routineData || !routineData.id) return;
 
-    if (window.confirm('Are you sure you want to delete your current routine?')) {
+    if (window.confirm('Are you sure you want to delete your active routine?')) {
       try {
         await deleteRoutine(routineData.id);
         setRoutineData(null);
+        showToast('Routine deleted successfully.', 'info');
       } catch (err) {
         console.error('Failed to delete routine:', err);
-        alert(err.message || 'Failed to delete routine.');
+        showToast(err.message || 'Failed to delete routine.', 'error');
       }
     }
   };
 
-
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 text-slate-500">
-        Loading routine...
+        Loading your active routine...
       </div>
     );
   }
 
-  // If no routine is found in localStorage
+  if (!user) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
+        <div className="bg-white p-8 sm:p-12 rounded-2xl border border-slate-200 shadow-sm max-w-md w-full space-y-6">
+          <div className="text-5xl">🔒</div>
+          <h2 className="text-2xl font-bold text-slate-800">Login Required</h2>
+          <p className="text-slate-600 text-sm">
+            Please log in or create an account to view and manage your personalized daily routines.
+          </p>
+          <div>
+            <Link
+              to="/login"
+              className="inline-block px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base shadow-md transition-colors"
+            >
+              Sign Up / Log In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!routineData || !routineData.tasks || routineData.tasks.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
         <div className="bg-white p-8 sm:p-12 rounded-2xl border border-slate-200 shadow-sm max-w-md w-full space-y-6">
           <div className="text-5xl">📋</div>
-          <h2 className="text-2xl font-bold text-slate-800">No routine found</h2>
+          <h2 className="text-2xl font-bold text-slate-800">No active routine found</h2>
           <p className="text-slate-600 text-sm">
-            You haven't generated a routine yet. Create your routine first to start tracking your daily tasks!
+            You haven't created a routine yet. Let Groq AI generate a personalized schedule or create one manually!
           </p>
           <div>
             <Link
               to="/create-routine"
               className="inline-block px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base shadow-md transition-colors"
             >
-              Create Routine
+              Create Routine Now
             </Link>
           </div>
         </div>
@@ -131,18 +161,18 @@ const MyRoutine = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">My Routine</h1>
+          <h1 className="text-3xl font-bold text-slate-900">My Daily Routine</h1>
           <p className="text-slate-600 text-sm mt-1">
-            Goal: <span className="font-semibold text-blue-700">{routineData.goal}</span>
+            Goal: <span className="font-semibold text-blue-700">{routineData.goal}</span> | Pace: <span className="font-medium text-slate-700">{routineData.difficulty}</span>
           </p>
         </div>
 
         <div className="flex items-center space-x-3">
           <Link
-            to="/create-routine"
+            to={`/edit-routine/${routineData.id}`}
             className="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl border border-blue-200"
           >
-            ✏️ Edit / Regenerate
+            ✏️ Edit Routine
           </Link>
 
           <button
@@ -157,7 +187,7 @@ const MyRoutine = () => {
       {/* Today's Progress Bar Card */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex justify-between items-center text-sm sm:text-base font-semibold">
-          <span className="text-slate-800">Today's Progress</span>
+          <span className="text-slate-800">Today's Goal Progress</span>
           <span className="text-blue-600">
             {completedTasks} / {totalTasks} tasks completed ({progressPercentage}%)
           </span>
@@ -174,7 +204,7 @@ const MyRoutine = () => {
 
       {/* Routine Cards List */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-slate-800">Schedule & Tasks</h2>
+        <h2 className="text-xl font-bold text-slate-800">Scheduled Activities</h2>
         {routineData.tasks.map((task) => (
           <RoutineCard
             key={task.id}

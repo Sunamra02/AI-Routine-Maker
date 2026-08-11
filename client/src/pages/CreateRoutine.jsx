@@ -1,75 +1,80 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import RoutineCard from '../components/RoutineCard';
-import { createRoutine } from '../services/api';
+import { fetchCurrentUser, getAiRoutineSuggestions, getAiTaskSuggestions, createRoutine } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 /**
  * CreateRoutine Page Component
- * Allows logged-in users to input their goal, available hours, times, and difficulty level
- * to generate a customized routine via Spring Boot REST API backend.
+ * Implements a 4-step workflow:
+ * Step 1: Enter Preferences
+ * Step 2: Choose AI Routine Option (3 options) OR Manual Routine Creation
+ * Step 3: Select & Edit AI Task Suggestions OR Add Manual Tasks
+ * Step 4: Confirm and Save to MySQL Database
  */
 const CreateRoutine = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // Authentication check
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
   useEffect(() => {
-    const session = localStorage.getItem('user_session');
-    if (session) {
-      try {
-        const parsed = JSON.parse(session);
-        if (parsed.isLoggedIn) {
-          setIsLoggedIn(true);
-          setCurrentUser(parsed.username);
-        }
-      } catch {
-        setIsLoggedIn(false);
-      }
-    } else {
-      setIsLoggedIn(false);
-    }
+    fetchCurrentUser()
+      .then((user) => {
+        setCurrentUser(user);
+        setAuthChecking(false);
+      })
+      .catch(() => {
+        setCurrentUser(null);
+        setAuthChecking(false);
+      });
   }, []);
 
-  // Form State
+  // Wizard Step: 1 = Preferences, 2 = Routine Selection, 3 = Task Selection/Creation, 4 = Review & Save
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Step 1: Preferences State
   const [mainGoal, setMainGoal] = useState('');
   const [availableHours, setAvailableHours] = useState('8');
   const [wakeupTime, setWakeupTime] = useState('07:00');
   const [sleepTime, setSleepTime] = useState('23:00');
   const [difficulty, setDifficulty] = useState('Intermediate');
 
-  // UI States
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [generatedRoutine, setGeneratedRoutine] = useState(null);
+  // Step 2: AI Routine Suggestions State
+  const [aiRoutineOptions, setAiRoutineOptions] = useState([]);
+  const [selectedRoutineOption, setSelectedRoutineOption] = useState(null);
+  const [isManualRoutine, setIsManualRoutine] = useState(false);
+
+  // Step 3: Tasks State
+  const [suggestedTasks, setSuggestedTasks] = useState([]);
+  const [selectedTaskIndices, setSelectedTaskIndices] = useState([]);
+  const [editingTaskIndex, setEditingTaskIndex] = useState(null);
+
+  // New Manual Task Form State
+  const [newTaskTime, setNewTaskTime] = useState('08:00');
+  const [newTaskActivity, setNewTaskActivity] = useState('');
+  const [newTaskDuration, setNewTaskDuration] = useState('45');
+
+  // Loading States
+  const [isAiRoutineLoading, setIsAiRoutineLoading] = useState(false);
+  const [isAiTaskLoading, setIsAiTaskLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   /**
-   * Handle Form Submission via Spring Boot REST API
+   * Step 1 -> Step 2: Request AI Routine Suggestions
    */
-  const handleGenerate = async (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-
-    // Check login requirement
-    if (!isLoggedIn) {
-      setErrorMessage('Please Sign Up or Log In first to generate a routine.');
-      return;
-    }
-
-    // Validation
+  const handleFetchAiRoutineSuggestions = async () => {
     if (!mainGoal.trim()) {
-      setErrorMessage('Please enter your Main Goal.');
+      showToast('Please enter your Main Goal.', 'warning');
       return;
     }
     if (!availableHours || parseInt(availableHours, 10) <= 0) {
-      setErrorMessage('Please enter valid available hours.');
+      showToast('Please enter valid available study hours.', 'warning');
       return;
     }
 
-    // Start loading state
-    setIsLoading(true);
-
+    setIsAiRoutineLoading(true);
     try {
       const payload = {
         goal: mainGoal.trim(),
@@ -79,215 +84,583 @@ const CreateRoutine = () => {
         difficulty: difficulty,
       };
 
-      const createdRoutineData = await createRoutine(payload);
-      setGeneratedRoutine(createdRoutineData);
+      const res = await getAiRoutineSuggestions(payload);
+      if (res && res.options && res.options.length > 0) {
+        setAiRoutineOptions(res.options);
+        setSelectedRoutineOption(res.options[0]);
+        setIsManualRoutine(false);
+        setCurrentStep(2);
+        showToast('AI suggested 3 routine options for your goal!', 'success');
+      } else {
+        throw new Error('No routine options received from AI.');
+      }
     } catch (err) {
-      console.error('Error generating routine:', err);
-      setErrorMessage(err.message || 'Failed to create routine. Please check backend connection.');
+      console.error('AI Routine suggestion error:', err);
+      showToast('Unable to get AI suggestions right now. You can create your routine manually.', 'warning');
+      // Fallback to manual routine creation
+      setIsManualRoutine(true);
+      setSelectedRoutineOption({
+        title: mainGoal.trim() + ' Routine',
+        description: 'Custom self-structured daily schedule.',
+      });
+      setCurrentStep(2);
     } finally {
-      setIsLoading(false);
+      setIsAiRoutineLoading(false);
     }
   };
 
+  /**
+   * Choose Manual Routine Creation directly from Step 1
+   */
+  const handleChooseManualRoutine = () => {
+    if (!mainGoal.trim()) {
+      showToast('Please enter your Main Goal first.', 'warning');
+      return;
+    }
+    setIsManualRoutine(true);
+    setSelectedRoutineOption({
+      title: mainGoal.trim() + ' Routine',
+      description: 'Custom self-structured daily schedule.',
+    });
+    setSuggestedTasks([]);
+    setCurrentStep(3);
+    showToast('Starting manual task creation mode.', 'info');
+  };
 
-  return (
-    <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full">
-      
-      {/* Page Title Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-slate-900">Create Your Daily Routine</h1>
-        <p className="text-slate-600 mt-2 text-sm sm:text-base">
-          Fill in your details below to let our algorithm generate a smart, balanced schedule.
-        </p>
-      </div>
+  /**
+   * Step 2 -> Step 3: Confirm Routine Option & Fetch AI Tasks
+   */
+  const handleConfirmRoutineOption = async () => {
+    if (!selectedRoutineOption && !isManualRoutine) {
+      showToast('Please select a routine option or choose manual creation.', 'warning');
+      return;
+    }
 
-      {/* Login Required Notice if not logged in */}
-      {!isLoggedIn && (
-        <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <span className="text-3xl">🔒</span>
-            <div>
-              <h3 className="font-bold text-amber-900">Login or Sign Up Required</h3>
-              <p className="text-amber-700 text-sm">
-                You need to log in or create an account before you can generate your personalized routine.
-              </p>
-            </div>
-          </div>
+    if (isManualRoutine) {
+      setCurrentStep(3);
+      return;
+    }
+
+    setIsAiTaskLoading(true);
+    try {
+      const payload = {
+        goal: mainGoal.trim(),
+        availableHours: parseInt(availableHours, 10),
+        wakeUpTime: wakeupTime,
+        sleepTime: sleepTime,
+        difficulty: difficulty,
+        selectedRoutineTitle: selectedRoutineOption.title,
+        selectedRoutineDescription: selectedRoutineOption.description,
+      };
+
+      const res = await getAiTaskSuggestions(payload);
+      if (res && res.tasks && res.tasks.length > 0) {
+        setSuggestedTasks(res.tasks);
+        // Select all by default
+        setSelectedTaskIndices(res.tasks.map((_, idx) => idx));
+        setCurrentStep(3);
+        showToast('AI generated task breakdown!', 'success');
+      } else {
+        throw new Error('No task breakdown returned.');
+      }
+    } catch (err) {
+      console.error('AI Task suggestion error:', err);
+      showToast('The AI response could not be processed. You can add tasks manually.', 'warning');
+      setSuggestedTasks([]);
+      setCurrentStep(3);
+    } finally {
+      setIsAiTaskLoading(false);
+    }
+  };
+
+  /**
+   * Toggle task selection checkbox in Step 3
+   */
+  const handleToggleTaskSelection = (idx) => {
+    setSelectedTaskIndices((prev) =>
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+    );
+  };
+
+  /**
+   * Add a custom manual task in Step 3
+   */
+  const handleAddManualTask = (e) => {
+    e.preventDefault();
+    if (!newTaskActivity.trim()) {
+      showToast('Please enter an activity description.', 'warning');
+      return;
+    }
+    const dur = parseInt(newTaskDuration, 10);
+    if (isNaN(dur) || dur <= 0) {
+      showToast('Please enter a valid duration in minutes.', 'warning');
+      return;
+    }
+
+    const newTask = {
+      time: newTaskTime,
+      activity: newTaskActivity.trim(),
+      duration: dur,
+    };
+
+    setSuggestedTasks((prev) => [...prev, newTask]);
+    setSelectedTaskIndices((prev) => [...prev, suggestedTasks.length]);
+    setNewTaskActivity('');
+    showToast('Task added to your list!', 'success');
+  };
+
+  /**
+   * Remove a task from the list
+   */
+  const handleRemoveTask = (idx) => {
+    setSuggestedTasks((prev) => prev.filter((_, i) => i !== idx));
+    setSelectedTaskIndices((prev) =>
+      prev.filter((i) => i !== idx).map((i) => (i > idx ? i - 1 : i))
+    );
+  };
+
+  /**
+   * Save Task edit
+   */
+  const handleSaveTaskEdit = (idx, updatedTask) => {
+    setSuggestedTasks((prev) =>
+      prev.map((t, i) => (i === idx ? updatedTask : t))
+    );
+    setEditingTaskIndex(null);
+    showToast('Task updated.', 'info');
+  };
+
+  /**
+   * Final Step: Save Routine and Tasks to Backend MySQL Database
+   */
+  const handleSaveFinalRoutine = async () => {
+    const finalTasksToSave = suggestedTasks.filter((_, idx) =>
+      selectedTaskIndices.includes(idx)
+    );
+
+    if (finalTasksToSave.length === 0) {
+      showToast('Please select or add at least one task for your routine.', 'warning');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        goal: mainGoal.trim(),
+        availableHours: parseInt(availableHours, 10),
+        wakeUpTime: wakeupTime,
+        sleepTime: sleepTime,
+        difficulty: difficulty,
+        tasks: finalTasksToSave,
+      };
+
+      await createRoutine(payload);
+      showToast('Routine and tasks saved successfully to database!', 'success');
+      navigate('/my-routine');
+    } catch (err) {
+      console.error('Error saving routine:', err);
+      showToast(err.message || 'Failed to save routine. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (authChecking) {
+    return <div className="p-8 text-center text-slate-500">Checking authentication...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-amber-50 border border-amber-200 p-8 rounded-2xl max-w-md w-full space-y-4">
+          <span className="text-4xl">🔒</span>
+          <h2 className="text-xl font-bold text-amber-900">Login or Sign Up Required</h2>
+          <p className="text-amber-700 text-sm">
+            Only registered users can generate and save daily routines to their account.
+          </p>
           <Link
             to="/login"
-            className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm transition-colors shrink-0"
+            className="inline-block px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md transition-colors"
           >
             Sign Up / Log In →
           </Link>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* Form Container */}
-      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm mb-10">
-        
-        {errorMessage && (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
-            ⚠️ {errorMessage}
-          </div>
-        )}
+  return (
+    <div className="flex-1 py-10 px-4 max-w-4xl mx-auto w-full space-y-8">
+      
+      {/* Step Indicator Header */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            Create Routine: Step {currentStep} of 3
+          </h1>
+          <span className="text-xs font-semibold px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+            {currentStep === 1 && 'Preferences'}
+            {currentStep === 2 && 'AI Routine Selection'}
+            {currentStep === 3 && 'Task Customization & Save'}
+          </span>
+        </div>
 
-        <form onSubmit={handleGenerate} className="space-y-6">
-          
-          {/* 1. Main Goal */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              1. Main Goal <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Prepare for Exams, Learn React, Build a Fitness Routine"
-              value={mainGoal}
-              onChange={(e) => setMainGoal(e.target.value)}
-              disabled={!isLoggedIn}
-              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 disabled:bg-slate-100 disabled:cursor-not-allowed"
-            />
-          </div>
-
-          {/* Grid for parameters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            
-            {/* 2. Available Hours */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                2. Available Study/Work Hours
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="18"
-                value={availableHours}
-                onChange={(e) => setAvailableHours(e.target.value)}
-                disabled={!isLoggedIn}
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 disabled:bg-slate-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            {/* 5. Difficulty */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                3. Difficulty / Pace
-              </label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-                disabled={!isLoggedIn}
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
-              >
-                <option value="Beginner">Beginner (Gentle pace)</option>
-                <option value="Intermediate">Intermediate (Balanced pace)</option>
-                <option value="Advanced">Advanced (Intensive pace)</option>
-              </select>
-            </div>
-
-            {/* 3. Wake-up Time */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                4. Wake-up Time
-              </label>
-              <input
-                type="time"
-                value={wakeupTime}
-                onChange={(e) => setWakeupTime(e.target.value)}
-                disabled={!isLoggedIn}
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 disabled:bg-slate-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            {/* 4. Sleep Time */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                5. Sleep Time
-              </label>
-              <input
-                type="time"
-                value={sleepTime}
-                onChange={(e) => setSleepTime(e.target.value)}
-                disabled={!isLoggedIn}
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 disabled:bg-slate-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-          </div>
-
-          {/* Submit Button */}
-          <div className="pt-2">
-            {isLoggedIn ? (
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg shadow-md hover:shadow-lg transition-all disabled:opacity-75 flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                {isLoading ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Creating your personalized routine...</span>
-                  </>
-                ) : (
-                  <span>⚡ Generate Routine</span>
-                )}
-              </button>
-            ) : (
-              <Link
-                to="/login"
-                className="w-full py-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-lg shadow-md text-center block transition-all"
-              >
-                🔒 Sign Up / Log In to Generate Routine
-              </Link>
-            )}
-          </div>
-
-        </form>
+        {/* Step Progress Bar */}
+        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+          <div
+            className="bg-blue-600 h-full transition-all duration-300 rounded-full"
+            style={{ width: `${(currentStep / 3) * 100}%` }}
+          />
+        </div>
       </div>
 
-      {/* Generated Routine Display Section */}
-      {generatedRoutine && (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-md space-y-6 animate-fade-in">
-          
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 pb-4 gap-4">
+      {/* STEP 1: Enter Preferences */}
+      {currentStep === 1 && (
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <h2 className="text-xl font-bold text-slate-800 border-b border-slate-100 pb-3">
+            1. Enter Your Routine Preferences
+          </h2>
+
+          <div className="space-y-4">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
-                Routine Generated
-              </span>
-              <h2 className="text-2xl font-bold text-slate-900 mt-2">
-                Your Customized Routine for "{generatedRoutine.goal}"
-              </h2>
-              <p className="text-slate-500 text-xs mt-1">
-                User: {generatedRoutine.user || currentUser || 'Student'} | Pace: {generatedRoutine.difficulty} | Available Time: {generatedRoutine.availableHours} hours
-              </p>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                Main Goal <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Prepare for Semester Exams, Master React & Java, Data Science Study"
+                value={mainGoal}
+                onChange={(e) => setMainGoal(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+              />
             </div>
 
-            <Link
-              to="/my-routine"
-              className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-sm transition-colors shrink-0"
-            >
-              View My Routine →
-            </Link>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Available Study/Work Hours per day
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="18"
+                  value={availableHours}
+                  onChange={(e) => setAvailableHours(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Difficulty / Pace
+                </label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-800"
+                >
+                  <option value="Beginner">Beginner (Gentle pace)</option>
+                  <option value="Intermediate">Intermediate (Balanced pace)</option>
+                  <option value="Advanced">Advanced (Intensive pace)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Wake-up Time
+                </label>
+                <input
+                  type="time"
+                  value={wakeupTime}
+                  onChange={(e) => setWakeupTime(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Sleep Time
+                </label>
+                <input
+                  type="time"
+                  value={sleepTime}
+                  onChange={(e) => setSleepTime(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Cards List */}
-          <div className="space-y-4">
-            {generatedRoutine.tasks.map((task) => (
-              <RoutineCard key={task.id} task={task} showCheckbox={false} />
-            ))}
-          </div>
-
-          <div className="pt-4 text-center">
+          {/* Action Buttons for Step 1 */}
+          <div className="pt-4 flex flex-col sm:flex-row gap-4">
             <button
-              onClick={() => navigate('/my-routine')}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-md transition-all cursor-pointer"
+              onClick={handleFetchAiRoutineSuggestions}
+              disabled={isAiRoutineLoading}
+              className="flex-1 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-base shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-75"
             >
-              View My Routine & Start Tracking
+              {isAiRoutineLoading ? (
+                <span>🤖 Requesting Groq AI Suggestions...</span>
+              ) : (
+                <span>✨ Get AI Routine Suggestions (3 Options)</span>
+              )}
+            </button>
+
+            <button
+              onClick={handleChooseManualRoutine}
+              className="py-4 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-base transition-colors cursor-pointer border border-slate-300"
+            >
+              ✍️ Create Manually
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: AI Routine Options Selection */}
+      {currentStep === 2 && (
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">
+                2. Choose a Routine Option
+              </h2>
+              <p className="text-slate-500 text-xs mt-0.5">
+                Groq AI generated 3 realistic schedules based on your goal "{mainGoal}"
+              </p>
+            </div>
+            <button
+              onClick={() => setCurrentStep(1)}
+              className="text-xs font-semibold text-blue-600 hover:underline"
+            >
+              ← Edit Preferences
             </button>
           </div>
 
+          {/* 3 AI Cards */}
+          <div className="space-y-4">
+            {aiRoutineOptions.map((opt) => (
+              <div
+                key={opt.id}
+                onClick={() => setSelectedRoutineOption(opt)}
+                className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                  selectedRoutineOption?.id === opt.id
+                    ? 'border-blue-600 bg-blue-50/50 shadow-md'
+                    : 'border-slate-200 bg-white hover:border-blue-300'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2.5 py-0.5 rounded-full">
+                      {opt.focusStyle || 'Style Option'}
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900 mt-1">{opt.title}</h3>
+                    <p className="text-sm text-slate-600">{opt.description}</p>
+                  </div>
+                  <input
+                    type="radio"
+                    name="routine_option"
+                    checked={selectedRoutineOption?.id === opt.id}
+                    onChange={() => setSelectedRoutineOption(opt)}
+                    className="w-5 h-5 text-blue-600 accent-blue-600 cursor-pointer mt-1"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <button
+              onClick={handleChooseManualRoutine}
+              className="text-sm text-slate-600 hover:text-slate-900 font-semibold"
+            >
+              Or skip AI suggestions & create manually →
+            </button>
+
+            <button
+              onClick={handleConfirmRoutineOption}
+              disabled={isAiTaskLoading}
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-75"
+            >
+              {isAiTaskLoading ? (
+                <span>🤖 Generating Task List...</span>
+              ) : (
+                <span>Continue to Task Selection →</span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: Task Customization & Manual Addition */}
+      {currentStep === 3 && (
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">
+                3. Customize Your Schedule & Tasks
+              </h2>
+              <p className="text-slate-500 text-xs mt-0.5">
+                Selected Routine: <span className="font-semibold text-blue-700">{selectedRoutineOption?.title || mainGoal}</span>
+              </p>
+            </div>
+            <button
+              onClick={() => setCurrentStep(2)}
+              className="text-xs font-semibold text-blue-600 hover:underline"
+            >
+              ← Back to Routine Choice
+            </button>
+          </div>
+
+          {/* AI Task Suggestions List */}
+          {suggestedTasks.length > 0 ? (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-700">
+                Select tasks to include in your routine:
+              </h3>
+              {suggestedTasks.map((task, idx) => (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-xl border transition-all ${
+                    selectedTaskIndices.includes(idx)
+                      ? 'bg-blue-50/40 border-blue-200'
+                      : 'bg-slate-50 border-slate-200 opacity-60'
+                  }`}
+                >
+                  {editingTaskIndex === idx ? (
+                    /* Task Edit Form */
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <input
+                        type="time"
+                        defaultValue={task.time}
+                        id={`edit_time_${idx}`}
+                        className="px-3 py-1.5 border rounded-lg text-sm"
+                      />
+                      <input
+                        type="text"
+                        defaultValue={task.activity}
+                        id={`edit_act_${idx}`}
+                        className="flex-1 px-3 py-1.5 border rounded-lg text-sm"
+                      />
+                      <input
+                        type="number"
+                        defaultValue={task.duration}
+                        id={`edit_dur_${idx}`}
+                        className="w-20 px-3 py-1.5 border rounded-lg text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const timeVal = document.getElementById(`edit_time_${idx}`).value;
+                            const actVal = document.getElementById(`edit_act_${idx}`).value;
+                            const durVal = parseInt(document.getElementById(`edit_dur_${idx}`).value, 10);
+                            handleSaveTaskEdit(idx, { time: timeVal, activity: actVal, duration: durVal });
+                          }}
+                          className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-semibold"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingTaskIndex(null)}
+                          className="px-3 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Normal Display */
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedTaskIndices.includes(idx)}
+                          onChange={() => handleToggleTaskSelection(idx)}
+                          className="w-5 h-5 text-blue-600 accent-blue-600 cursor-pointer"
+                        />
+                        <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded-md">
+                          {task.time}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-slate-800 text-sm">{task.activity}</p>
+                          <span className="text-xs text-slate-500">⏱️ {task.duration} min</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingTaskIndex(idx)}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold p-1 cursor-pointer"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTask(idx)}
+                          className="text-xs text-red-600 hover:text-red-800 font-semibold p-1 cursor-pointer"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-slate-500 text-sm">
+              No tasks added yet. Use the form below to manually add tasks for your routine.
+            </div>
+          )}
+
+          {/* Add Manual Task Form */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              + Add Custom Manual Task
+            </h4>
+            <form onSubmit={handleAddManualTask} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <input
+                type="time"
+                value={newTaskTime}
+                onChange={(e) => setNewTaskTime(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+              />
+              <input
+                type="text"
+                placeholder="Activity description..."
+                value={newTaskActivity}
+                onChange={(e) => setNewTaskActivity(e.target.value)}
+                className="sm:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+              />
+              <div className="flex space-x-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={newTaskDuration}
+                  onChange={(e) => setNewTaskDuration(e.target.value)}
+                  className="w-20 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                />
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs cursor-pointer shadow-xs"
+                >
+                  + Add
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Final Save Button */}
+          <div className="pt-4 text-center">
+            <button
+              onClick={handleSaveFinalRoutine}
+              disabled={isSaving}
+              className="w-full sm:w-auto px-10 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg shadow-md transition-all cursor-pointer disabled:opacity-75"
+            >
+              {isSaving ? 'Saving Routine...' : '💾 Confirm & Save Routine to Account'}
+            </button>
+          </div>
         </div>
       )}
 

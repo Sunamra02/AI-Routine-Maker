@@ -1,152 +1,162 @@
 package com.example.airoutinemaker.service;
 
-import com.example.airoutinemaker.dto.RoutineRequest;
+import com.example.airoutinemaker.dto.AiTaskDTO;
+import com.example.airoutinemaker.dto.RoutineSaveRequest;
 import com.example.airoutinemaker.model.Routine;
 import com.example.airoutinemaker.model.RoutineTask;
+import com.example.airoutinemaker.model.User;
 import com.example.airoutinemaker.repository.RoutineRepository;
 import com.example.airoutinemaker.repository.RoutineTaskRepository;
-// import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * RoutineService Class
- * Contains business logic for routine creation, algorithm task generation, database persistence, and task updates.
+ * Handles DB persistence, updating, retrieval, and deletion of user routines and tasks.
  */
 @Service
 public class RoutineService {
 
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+
     private final RoutineRepository routineRepository;
     private final RoutineTaskRepository routineTaskRepository;
 
-    // @Autowired
     public RoutineService(RoutineRepository routineRepository, RoutineTaskRepository routineTaskRepository) {
         this.routineRepository = routineRepository;
         this.routineTaskRepository = routineTaskRepository;
     }
 
     /**
-     * Creates a new routine and generates tailored tasks based on user's goal and schedule parameters.
+     * Creates and saves a new routine along with user-selected/custom tasks.
      */
     @Transactional
-    public Routine createRoutine(RoutineRequest request) {
-        // 1. Create Routine Object
+    public Routine createRoutine(RoutineSaveRequest request, User user) {
         Routine routine = new Routine(
                 request.getGoal(),
-                request.getAvailableHours(),
+                request.getAvailableHours() != null ? request.getAvailableHours() : 6,
                 request.getWakeUpTime() != null ? request.getWakeUpTime() : LocalTime.of(7, 0),
                 request.getSleepTime() != null ? request.getSleepTime() : LocalTime.of(23, 0),
                 request.getDifficulty() != null ? request.getDifficulty() : "Intermediate"
         );
+        routine.setUser(user);
 
-        // 2. Generate tasks based on user goal and schedule
-        generateRoutineTasks(routine);
+        if (request.getTasks() != null) {
+            for (AiTaskDTO taskDTO : request.getTasks()) {
+                LocalTime taskTime;
+                try {
+                    taskTime = LocalTime.parse(taskDTO.getTime(), TIME_FORMATTER);
+                } catch (Exception e) {
+                    taskTime = routine.getWakeUpTime();
+                }
+                RoutineTask task = new RoutineTask(
+                        taskTime,
+                        taskDTO.getActivity() != null ? taskDTO.getActivity() : "Task Activity",
+                        taskDTO.getDuration() != null ? taskDTO.getDuration() : 30,
+                        false
+                );
+                routine.addTask(task);
+            }
+        }
 
-        // 3. Save Routine (Cascades saving tasks)
         return routineRepository.save(routine);
     }
 
     /**
-     * Pure Java Routine Generation Logic
-     * NOTE: Can later be replaced by an external AI API call service.
+     * Retrieves all routines belonging to the authenticated user.
      */
-    private void generateRoutineTasks(Routine routine) {
-        String goalLower = routine.getGoal().toLowerCase();
-        LocalTime wakeTime = routine.getWakeUpTime();
-        Integer hours = routine.getAvailableHours() != null ? routine.getAvailableHours() : 4;
-        String difficulty = routine.getDifficulty() != null ? routine.getDifficulty() : "Intermediate";
+    public List<Routine> getUserRoutines(User user) {
+        return routineRepository.findByUserIdOrderByIdDesc(user.getId());
+    }
 
-        // Determine activity subjects based on goal keywords
-        String primaryActivity;
-        String secondaryActivity;
-
-        if (goalLower.contains("programming") || goalLower.contains("coding") || goalLower.contains("java") || goalLower.contains("python") || goalLower.contains("software")) {
-            primaryActivity = "Programming Practice & Coding Problems";
-            secondaryActivity = "Project Work & Code Debugging";
-        } else if (goalLower.contains("exam") || goalLower.contains("study") || goalLower.contains("test") || goalLower.contains("aptitude")) {
-            primaryActivity = "Subject Study & Theory Review";
-            secondaryActivity = "Aptitude Practice & Mock Test";
-        } else {
-            primaryActivity = "Goal-focused Study (" + routine.getGoal() + ")";
-            secondaryActivity = "Hands-on Practice & Skill Revision";
+    /**
+     * Retrieves the latest routine belonging to the authenticated user.
+     */
+    public Optional<Routine> getLatestUserRoutine(User user) {
+        List<Routine> routines = routineRepository.findByUserIdOrderByIdDesc(user.getId());
+        if (routines.isEmpty()) {
+            return Optional.empty();
         }
-
-        // Generate baseline routine tasks using wakeUpTime
-        LocalTime currentTime = wakeTime;
-
-        // Morning Wake Up
-        routine.addTask(new RoutineTask(currentTime, "Morning Exercise & Hydration", 30, false));
-        currentTime = currentTime.plusMinutes(30);
-
-        // Breakfast
-        routine.addTask(new RoutineTask(currentTime, "Breakfast & Goal Planning", 30, false));
-        currentTime = currentTime.plusMinutes(60); // Breakfast + prep time
-
-        // Primary Study Session
-        int mainSessionDuration = Math.min(hours * 30, 90);
-        routine.addTask(new RoutineTask(currentTime, primaryActivity, mainSessionDuration, false));
-        currentTime = currentTime.plusMinutes(mainSessionDuration + 30);
-
-        // Short Break
-        routine.addTask(new RoutineTask(currentTime, "Short Rest & Snack Break", 30, false));
-        currentTime = currentTime.plusMinutes(30);
-
-        // Secondary Session
-        int secondSessionDuration = difficulty.equalsIgnoreCase("Advanced") ? 90 : 60;
-        routine.addTask(new RoutineTask(currentTime, secondaryActivity, secondSessionDuration, false));
-        currentTime = currentTime.plusMinutes(secondSessionDuration + 60);
-
-        // Lunch
-        routine.addTask(new RoutineTask(currentTime, "Lunch & Relaxation", 60, false));
-        currentTime = currentTime.plusMinutes(120);
-
-        // Revision
-        routine.addTask(new RoutineTask(currentTime, "Revision & Self Assessment", 60, false));
-        currentTime = currentTime.plusMinutes(180);
-
-        // Evening Review
-        routine.addTask(new RoutineTask(currentTime, "Daily Review & Wind Down", 30, false));
+        return Optional.of(routines.get(0));
     }
 
     /**
-     * Retrieve all routines
+     * Retrieves routine by ID verifying user ownership.
      */
-    public List<Routine> getAllRoutines() {
-        return routineRepository.findAll();
+    public Optional<Routine> getRoutineByIdAndUser(Long id, User user) {
+        return routineRepository.findByIdAndUserId(id, user.getId());
     }
 
     /**
-     * Retrieve routine by ID
-     */
-    public Optional<Routine> getRoutineById(Long id) {
-        return routineRepository.findById(id);
-    }
-
-    /**
-     * Update task completion status
+     * Updates an existing routine and its tasks for the authenticated user.
      */
     @Transactional
-    public Optional<RoutineTask> updateTaskCompletion(Long taskId, Boolean completed) {
+    public Optional<Routine> updateRoutine(Long id, RoutineSaveRequest request, User user) {
+        Optional<Routine> optionalRoutine = routineRepository.findByIdAndUserId(id, user.getId());
+        if (optionalRoutine.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Routine routine = optionalRoutine.get();
+        if (request.getGoal() != null) routine.setGoal(request.getGoal());
+        if (request.getAvailableHours() != null) routine.setAvailableHours(request.getAvailableHours());
+        if (request.getWakeUpTime() != null) routine.setWakeUpTime(request.getWakeUpTime());
+        if (request.getSleepTime() != null) routine.setSleepTime(request.getSleepTime());
+        if (request.getDifficulty() != null) routine.setDifficulty(request.getDifficulty());
+
+        // Replace tasks
+        routine.getTasks().clear();
+        if (request.getTasks() != null) {
+            for (AiTaskDTO taskDTO : request.getTasks()) {
+                LocalTime taskTime;
+                try {
+                    taskTime = LocalTime.parse(taskDTO.getTime(), TIME_FORMATTER);
+                } catch (Exception e) {
+                    taskTime = routine.getWakeUpTime();
+                }
+                RoutineTask task = new RoutineTask(
+                        taskTime,
+                        taskDTO.getActivity() != null ? taskDTO.getActivity() : "Task Activity",
+                        taskDTO.getDuration() != null ? taskDTO.getDuration() : 30,
+                        false
+                );
+                routine.addTask(task);
+            }
+        }
+
+        return Optional.of(routineRepository.save(routine));
+    }
+
+    /**
+     * Updates task completion status verifying user ownership of the parent routine.
+     */
+    @Transactional
+    public Optional<RoutineTask> updateTaskCompletion(Long taskId, Boolean completed, User user) {
         Optional<RoutineTask> optionalTask = routineTaskRepository.findById(taskId);
         if (optionalTask.isPresent()) {
             RoutineTask task = optionalTask.get();
-            task.setCompleted(completed != null ? completed : false);
-            return Optional.of(routineTaskRepository.save(task));
+            if (task.getRoutine() != null && task.getRoutine().getUser() != null
+                    && task.getRoutine().getUser().getId().equals(user.getId())) {
+                task.setCompleted(completed != null ? completed : false);
+                return Optional.of(routineTaskRepository.save(task));
+            }
         }
         return Optional.empty();
     }
 
     /**
-     * Delete routine and associated tasks
+     * Deletes user routine verifying user ownership.
      */
     @Transactional
-    public boolean deleteRoutine(Long id) {
-        if (routineRepository.existsById(id)) {
-            routineRepository.deleteById(id);
+    public boolean deleteRoutine(Long id, User user) {
+        Optional<Routine> optionalRoutine = routineRepository.findByIdAndUserId(id, user.getId());
+        if (optionalRoutine.isPresent()) {
+            routineRepository.delete(optionalRoutine.get());
             return true;
         }
         return false;

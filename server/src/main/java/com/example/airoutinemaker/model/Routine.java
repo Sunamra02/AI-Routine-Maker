@@ -41,6 +41,11 @@ public class Routine {
     @JsonManagedReference
     private List<RoutineTask> tasks = new ArrayList<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private User user;
+
     // Default Constructor
     public Routine() {
         this.createdAt = LocalDateTime.now();
@@ -125,5 +130,13 @@ public class Routine {
 
     public void setTasks(List<RoutineTask> tasks) {
         this.tasks = tasks;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

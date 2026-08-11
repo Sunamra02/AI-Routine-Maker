@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signupUser, loginUser, logoutUser, fetchCurrentUser } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 /**
  * Auth / Login & Sign Up Page Component
- * Allows students to Sign Up or Log In.
- * Enforces rule: Username cannot contain spaces.
+ * Handles MySQL user authentication, session cookies, space-free username validation,
+ * and password show/hide eye toggle button.
  */
 const Login = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
-  // Tab State: 'login' or 'signup'
+  // Tab State: 'signup' or 'login'
   const [activeTab, setActiveTab] = useState('signup');
 
   // Form State
@@ -17,30 +20,33 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Status Messages
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // Password Visibility Toggles
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Active Session State
+  // Status & Loading States
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [userSession, setUserSession] = useState(null);
 
-  // Load existing session on mount
+  // Load existing session from backend on mount
   useEffect(() => {
-    const session = localStorage.getItem('user_session');
-    if (session) {
-      try {
-        setUserSession(JSON.parse(session));
-      } catch (e) {
-        console.error('Error parsing session:', e);
-      }
-    }
+    fetchCurrentUser()
+      .then((user) => {
+        if (user && user.username) {
+          setUserSession(user);
+        }
+      })
+      .catch(() => {
+        setUserSession(null);
+      });
   }, []);
 
   /**
    * Validate Username (No spaces allowed)
    */
   const validateUsername = (name) => {
-    if (!name.trim()) return 'Username is required.';
+    if (!name || !name.trim()) return 'Username is required.';
     if (name.includes(' ')) return 'Username cannot contain any spaces.';
     if (name.length < 3) return 'Username must be at least 3 characters long.';
     return null;
@@ -49,125 +55,126 @@ const Login = () => {
   /**
    * Handle Sign Up
    */
-  const handleSignUp = (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    setSuccessMessage('');
 
-    // Username validation
     const usernameError = validateUsername(username);
     if (usernameError) {
       setErrorMessage(usernameError);
+      showToast(usernameError, 'error');
       return;
     }
 
-    // Password validation
     if (!password) {
       setErrorMessage('Password is required.');
+      showToast('Password is required.', 'error');
       return;
     }
     if (password.length < 4) {
       setErrorMessage('Password must be at least 4 characters long.');
+      showToast('Password must be at least 4 characters long.', 'error');
       return;
     }
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match.');
+      showToast('Passwords do not match.', 'error');
       return;
     }
 
-    // Read existing registered accounts
-    const existingAccounts = JSON.parse(localStorage.getItem('user_accounts') || '[]');
-    const userExists = existingAccounts.some(
-      (acc) => acc.username.toLowerCase() === username.toLowerCase()
-    );
+    setIsLoading(true);
 
-    if (userExists) {
-      setErrorMessage('Username already taken. Please choose another username or log in.');
-      return;
+    try {
+      const user = await signupUser({
+        username: username.trim(),
+        password,
+        confirmPassword,
+      });
+
+      setUserSession(user);
+      window.dispatchEvent(new Event('auth-change'));
+      showToast(`Account created successfully! Welcome ${user.username}`, 'success');
+
+      setTimeout(() => {
+        navigate('/create-routine');
+      }, 1000);
+    } catch (err) {
+      console.error('Signup error:', err);
+      const msg = err.message || 'Failed to create account.';
+      setErrorMessage(msg);
+      showToast(msg, 'error');
+    } finally {
+      setIsLoading(false);
     }
-
-    // Save new account
-    const newAccount = { username: username.trim(), password };
-    existingAccounts.push(newAccount);
-    localStorage.setItem('user_accounts', JSON.stringify(existingAccounts));
-
-    // Automatically log in the new user
-    const sessionData = { username: username.trim(), isLoggedIn: true };
-    localStorage.setItem('user_session', JSON.stringify(sessionData));
-    setUserSession(sessionData);
-
-    // Notify window for Navbar updates
-    window.dispatchEvent(new Event('storage'));
-
-    setSuccessMessage('Account created successfully! Redirecting to Create Routine...');
-
-    setTimeout(() => {
-      navigate('/create-routine');
-    }, 1200);
   };
 
   /**
    * Handle Log In
    */
-  const handleLogIn = (e) => {
+  const handleLogIn = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    setSuccessMessage('');
 
-    // Username validation
     const usernameError = validateUsername(username);
     if (usernameError) {
       setErrorMessage(usernameError);
+      showToast(usernameError, 'error');
       return;
     }
 
     if (!password) {
       setErrorMessage('Password is required.');
+      showToast('Password is required.', 'error');
       return;
     }
 
-    // Check against registered accounts (or allow demo login if first time)
-    const existingAccounts = JSON.parse(localStorage.getItem('user_accounts') || '[]');
-    const foundUser = existingAccounts.find(
-      (acc) => acc.username.toLowerCase() === username.toLowerCase()
-    );
+    setIsLoading(true);
 
-    if (existingAccounts.length > 0 && (!foundUser || foundUser.password !== password)) {
-      setErrorMessage('Invalid username or password.');
-      return;
+    try {
+      const user = await loginUser({
+        username: username.trim(),
+        password,
+      });
+
+      setUserSession(user);
+      window.dispatchEvent(new Event('auth-change'));
+      showToast(`Welcome back, ${user.username}!`, 'success');
+
+      setTimeout(() => {
+        navigate('/create-routine');
+      }, 800);
+    } catch (err) {
+      console.error('Login error:', err);
+      const msg = err.message || 'Invalid username or password.';
+      setErrorMessage(msg);
+      showToast(msg, 'error');
+    } finally {
+      setIsLoading(false);
     }
-
-    // Save session
-    const sessionData = { username: username.trim(), isLoggedIn: true };
-    localStorage.setItem('user_session', JSON.stringify(sessionData));
-    setUserSession(sessionData);
-
-    window.dispatchEvent(new Event('storage'));
-
-    setSuccessMessage(`Welcome back, ${username}! Redirecting...`);
-
-    setTimeout(() => {
-      navigate('/create-routine');
-    }, 1000);
   };
 
   /**
    * Handle Logout
    */
-  const handleLogout = () => {
-    localStorage.removeItem('user_session');
-    setUserSession(null);
-    setUsername('');
-    setPassword('');
-    setConfirmPassword('');
-    window.dispatchEvent(new Event('storage'));
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setUserSession(null);
+      setUsername('');
+      setPassword('');
+      setConfirmPassword('');
+      window.dispatchEvent(new Event('auth-change'));
+      showToast('Logged out successfully.', 'info');
+    } catch (err) {
+      showToast('Logout failed.', 'error');
+    }
   };
 
   return (
     <div className="flex-1 flex items-center justify-center py-12 px-4">
       <div className="bg-white p-6 sm:p-10 rounded-2xl border border-slate-200 shadow-md max-w-md w-full space-y-6">
         
-        {/* If user is already logged in */}
+        {/* If user is logged in */}
         {userSession ? (
           <div className="text-center space-y-6">
             <div className="inline-block bg-blue-100 text-blue-700 text-4xl p-4 rounded-full">
@@ -175,18 +182,18 @@ const Login = () => {
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Welcome, {userSession.username}!</h1>
             <p className="text-slate-500 text-sm">
-              You are currently logged in. You can now create and view your daily routines.
+              You are currently logged in to your account. You can now create and manage your routines.
             </p>
             <div className="pt-2 space-y-3">
               <button
                 onClick={() => navigate('/create-routine')}
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-sm transition-colors cursor-pointer"
+                className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-sm transition-colors cursor-pointer"
               >
                 Create Routine →
               </button>
               <button
                 onClick={handleLogout}
-                className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors cursor-pointer"
+                className="w-full py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors cursor-pointer"
               >
                 🚪 Log Out
               </button>
@@ -203,10 +210,10 @@ const Login = () => {
               {/* Tab Selector */}
               <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
                 <button
+                  type="button"
                   onClick={() => {
                     setActiveTab('signup');
                     setErrorMessage('');
-                    setSuccessMessage('');
                   }}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                     activeTab === 'signup'
@@ -217,10 +224,10 @@ const Login = () => {
                   Sign Up
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setActiveTab('login');
                     setErrorMessage('');
-                    setSuccessMessage('');
                   }}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                     activeTab === 'login'
@@ -233,16 +240,10 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Error / Success Banners */}
+            {/* Error Banner */}
             {errorMessage && (
               <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
                 ⚠️ {errorMessage}
-              </div>
-            )}
-
-            {successMessage && (
-              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
-                ✨ {successMessage}
               </div>
             )}
 
@@ -260,37 +261,60 @@ const Login = () => {
                   placeholder="e.g. alex_student"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 disabled:bg-slate-100"
                 />
               </div>
 
-              {/* Password Input */}
+              {/* Password Input with Eye Toggle */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
                   Password <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 disabled:bg-slate-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 text-sm p-1 cursor-pointer"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? '👁️' : '🙈'}
+                  </button>
+                </div>
               </div>
 
-              {/* Confirm Password Input (Sign Up Only) */}
+              {/* Confirm Password Input with Eye Toggle (Sign Up Only) */}
               {activeTab === 'signup' && (
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">
                     Confirm Password <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      disabled={isLoading}
+                      className="w-full px-4 py-3 pr-12 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 disabled:bg-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 text-sm p-1 cursor-pointer"
+                      title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? '👁️' : '🙈'}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -298,9 +322,14 @@ const Login = () => {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-md transition-all cursor-pointer"
+                  disabled={isLoading}
+                  className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-md transition-all cursor-pointer disabled:opacity-70 flex items-center justify-center space-x-2"
                 >
-                  {activeTab === 'signup' ? 'Create Account & Continue' : 'Log In'}
+                  {isLoading ? (
+                    <span>Processing...</span>
+                  ) : (
+                    <span>{activeTab === 'signup' ? 'Create Account & Continue' : 'Log In'}</span>
+                  )}
                 </button>
               </div>
 
