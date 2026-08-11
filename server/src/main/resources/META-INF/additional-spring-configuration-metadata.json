@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "app.cors.origin",
+      "type": "java.lang.String",
+      "description": "The URL of the frontend application that is allowed to make cross-origin requests to this backend."
+    }
+  ]
+}
