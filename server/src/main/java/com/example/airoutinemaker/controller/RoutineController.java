@@ -16,12 +16,13 @@ import java.util.Optional;
 
 /**
  * RoutineController Class
- * REST Controller exposing API endpoints for creating, retrieving, updating, and deleting routines.
+ * REST Controller exposing API endpoints for creating, retrieving, updating,
+ * and deleting routines.
  * Enables CORS for React frontend running at http://localhost:5173.
  */
 @RestController
 @RequestMapping("/api/routines")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${app.cors.origin}")
 public class RoutineController {
 
     private final RoutineService routineService;
@@ -73,7 +74,7 @@ public class RoutineController {
     public ResponseEntity<RoutineTask> updateTaskCompletion(
             @PathVariable Long taskId,
             @RequestBody TaskStatusUpdateRequest request) {
-        
+
         Optional<RoutineTask> updatedTask = routineService.updateTaskCompletion(taskId, request.getCompleted());
         return updatedTask.map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
