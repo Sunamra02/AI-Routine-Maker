@@ -55,7 +55,7 @@ public class AiRoutineService {
                       "id": "option_1",
                       "title": "Short Title",
                       "description": "Clear 1-2 sentence description of routine strategy.",
-                      "focusStyle": "Morning Focused / Balanced / Intensive Revision"
+                      "focusStyle": "Low Pressure / Balanced / Intensive Revision"
                     }
                   ]
                 }
@@ -152,7 +152,13 @@ public class AiRoutineService {
                 throw new RuntimeException("Groq API call returned HTTP " + response.getStatusCode());
             }
 
-            System.out.println("Groq API Response: " + response.getBody()); // Debugging
+            // Debugging
+            System.out.println("\n\nGroq API Request:\n"
+                    + ((Map<?, ?>) ((List<?>) requestBody.get("messages")).get(0)).get("content") + "\n");
+            System.out.println("Groq API Response:\n" + new ObjectMapper()
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(new ObjectMapper().readTree(response.getBody())));
+
             // output
 
             // Extract completion message content from response
@@ -207,7 +213,8 @@ public class AiRoutineService {
                 }
             }
 
-            if (options.isEmpty()) throw new RuntimeException("No AI routine options were returned.");
+            if (options.isEmpty())
+                throw new RuntimeException("No AI routine options were returned.");
 
             return new AiRoutineSuggestResponse(options);
         } catch (Exception e) {
